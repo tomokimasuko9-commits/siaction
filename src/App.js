@@ -160,6 +160,78 @@ const Dashboard = ({ companies, departments, logs }) => {
         </div>
       </div>
 
+      {/* 今日のアクション・期限超過 */}
+      {(() => {
+        const today = new Date().toISOString().slice(0,10);
+        const todayMs = new Date(today).getTime();
+        // next_action があるログのうち、活動日から7日以上経過しているものを期限超過とみなす
+        const overdue = logs.filter(l => {
+          if (!l.next_action || l.next_action === "") return false;
+          if (l.status === "完了" || l.status === "見送り") return false;
+          const logDate = new Date(l.date).getTime();
+          const diffDays = (todayMs - logDate) / (1000 * 60 * 60 * 24);
+          return diffDays > 7;
+        });
+        // 活動日から3〜7日のものを「今日対応すべき」として表示
+        const dueToday = logs.filter(l => {
+          if (!l.next_action || l.next_action === "") return false;
+          if (l.status === "完了" || l.status === "見送り") return false;
+          const logDate = new Date(l.date).getTime();
+          const diffDays = (todayMs - logDate) / (1000 * 60 * 60 * 24);
+          return diffDays >= 3 && diffDays <= 7;
+        });
+        if (overdue.length === 0 && dueToday.length === 0) return null;
+        return (
+          <div style={{ marginBottom:16 }}>
+            {/* 期限超過 */}
+            {overdue.length > 0 && (
+              <div style={{ background:"#450a0a", border:"1px solid #ef4444", borderRadius:12, padding:"12px 16px", marginBottom:10 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                  <span style={{ fontSize:16 }}>🚨</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:"#ef4444" }}>期限超過 {overdue.length}件 — 今すぐ対応が必要です</span>
+                </div>
+                {overdue.map(l => (
+                  <div key={l.id} style={{ display:"flex", gap:10, padding:"7px 10px", background:"rgba(239,68,68,0.1)", borderRadius:8, marginBottom:6 }}>
+                    <div style={{ minWidth:50, fontSize:11, color:"#ef4444", fontWeight:700 }}>{l.date?.slice(5)}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
+                        <span style={{ fontSize:12, fontWeight:600, color:"#f1f5f9" }}>{l.company?.replace("株式会社","").replace("合同会社","").trim()}</span>
+                        {l.department && <span style={{ fontSize:10, color:"#94a3b8" }}>{l.department}</span>}
+                      </div>
+                      <div style={{ fontSize:12, color:"#fca5a5" }}>📌 {l.next_action}</div>
+                    </div>
+                    <Tag phase={l.phase} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 今日期限 */}
+            {dueToday.length > 0 && (
+              <div style={{ background:"#431407", border:"1px solid #f59e0b", borderRadius:12, padding:"12px 16px", marginBottom:10 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                  <span style={{ fontSize:16 }}>⏰</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:"#f59e0b" }}>今日期限 {dueToday.length}件 — 本日中に対応してください</span>
+                </div>
+                {dueToday.map(l => (
+                  <div key={l.id} style={{ display:"flex", gap:10, padding:"7px 10px", background:"rgba(245,158,11,0.1)", borderRadius:8, marginBottom:6 }}>
+                    <div style={{ minWidth:50, fontSize:11, color:"#f59e0b", fontWeight:700 }}>今日</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
+                        <span style={{ fontSize:12, fontWeight:600, color:"#f1f5f9" }}>{l.company?.replace("株式会社","").replace("合同会社","").trim()}</span>
+                        {l.department && <span style={{ fontSize:10, color:"#94a3b8" }}>{l.department}</span>}
+                      </div>
+                      <div style={{ fontSize:12, color:"#fcd34d" }}>📌 {l.next_action}</div>
+                    </div>
+                    <Tag phase={l.phase} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
         <div style={{ fontSize:13, fontWeight:600, color:"#f1f5f9" }}>企業別 稼働人数</div>
         <div style={{ fontSize:11, color:"#475569" }}>⠿ ドラッグで並び替え可能</div>
