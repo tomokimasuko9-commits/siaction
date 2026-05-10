@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL,
-  process.env.REACT_APP_SUPABASE_ANON_KEY
+  "https://vxhkmjmrjzdsozfaggsu.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4aGttam1yanpkc296ZmFnZ3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzOTY2MjgsImV4cCI6MjA5Mzk3MjYyOH0.e7ncLRc67n6i3AwA5btRrZ1TsYSqTH4Wh4F9es5Clww"
 );
 
 // ── ユーティリティ ──────────────────────────────────────────
@@ -98,15 +98,38 @@ const Dashboard = ({ companies, departments, logs }) => {
   const kgiTarget  = 60;
   const kgiCurrent = departments.reduce((s, d) => s + (d.active_count || 0), 0);
   const kgiPct     = pct(kgiCurrent, kgiTarget);
+  const [sortedCos, setSortedCos] = useState([]);
+  const [dragIdx,   setDragIdx]   = useState(null);
 
-  const coWithDepts = companies.map(co => ({
+  useEffect(() => {
+    setSortedCos([...companies].sort((a,b) => (a.sort_order||0)-(b.sort_order||0)));
+  }, [companies]);
+
+  const handleDragStart = (idx) => setDragIdx(idx);
+  const handleDragOver  = (e, idx) => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === idx) return;
+    const next = [...sortedCos];
+    const [moved] = next.splice(dragIdx, 1);
+    next.splice(idx, 0, moved);
+    setSortedCos(next);
+    setDragIdx(idx);
+  };
+  const handleDragEnd = async () => {
+    setDragIdx(null);
+    for (let i = 0; i < sortedCos.length; i++) {
+      await supabase.from("companies").update({ sort_order: i }).eq("id", sortedCos[i].id);
+    }
+  };
+
+  const coWithDepts = sortedCos.map(co => ({
     ...co,
     depts: departments.filter(d => d.company_id === co.id),
+    latestLog: [...logs].filter(l => l.company === co.name).sort((a,b)=>b.date.localeCompare(a.date))[0] || null,
   }));
 
   return (
     <div>
-      {/* KGIバー */}
       <div style={{ ...S.card, display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
         <div style={{ minWidth:100 }}>
           <div style={{ fontSize:10, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:4 }}>KGI進捗</div>
@@ -119,30 +142,54 @@ const Dashboard = ({ companies, departments, logs }) => {
         </div>
         <div style={{ fontSize:26, fontWeight:800, color:"#818cf8", minWidth:60, textAlign:"right" }}>{kgiPct}%</div>
         <div style={{ fontSize:11, color:"#64748b", borderLeft:"1px solid #334155", paddingLeft:14, lineHeight:1.8 }}>
-          残り <strong style={{ color:"#f1f5f9" }}>{kgiTarget - kgiCurrent}件</strong><br />
-          期限 2027年3月末
+          残り <strong style={{ color:"#f1f5f9" }}>{kgiTarget - kgiCurrent}件</strong><br />期限 2027年3月末
         </div>
       </div>
 
-      {/* 企業別稼働人数 */}
-      <div style={{ fontSize:13, fontWeight:600, color:"#f1f5f9", marginBottom:10 }}>企業別 稼働人数</div>
-      {coWithDepts.map(co => {
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+        <div style={{ fontSize:13, fontWeight:600, color:"#f1f5f9" }}>企業別 稼働人数</div>
+        <div style={{ fontSize:11, color:"#475569" }}>⠿ ドラッグで並び替え可能</div>
+      </div>
+
+      {coWithDepts.map((co, idx) => {
         const total = co.depts.reduce((s, d) => s + (d.active_count || 0), 0);
+        const ll    = co.latestLog;
         return (
-          <div key={co.id} style={S.card}>
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom: co.depts.length ? 10 : 0 }}>
-              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:99, fontWeight:600, background: prioBg(co.priority), color: prioColor(co.priority) }}>{co.priority}</span>
+          <div key={co.id} draggable
+            onDragStart={() => handleDragStart(idx)}
+            onDragOver={e => handleDragOver(e, idx)}
+            onDragEnd={handleDragEnd}
+            style={{ ...S.card, cursor:"grab", opacity: dragIdx===idx ? 0.5 : 1, userSelect:"none" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+              <span style={{ color:"#334155", fontSize:16 }}>⠿</span>
+              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:99, fontWeight:600, background:prioBg(co.priority), color:prioColor(co.priority) }}>{co.priority}</span>
               <span style={{ flex:1, fontSize:13, fontWeight:600, color:"#f1f5f9" }}>{co.name}</span>
               <span style={{ fontSize:18, fontWeight:700, color:"#818cf8" }}>{total}<span style={{ fontSize:11, color:"#64748b" }}>名</span></span>
             </div>
+
+            {ll && (
+              <div style={{ padding:"7px 10px", background:"#0f172a", borderRadius:8, marginBottom:8, display:"flex", gap:10 }}>
+                <div style={{ fontSize:10, color:"#475569", whiteSpace:"nowrap", paddingTop:2 }}>{ll.date?.slice(5)}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
+                    <Tag phase={ll.phase} />
+                    <span style={{ fontSize:11, color:"#94a3b8" }}>{ll.activity_type}</span>
+                    {ll.person && <span style={{ fontSize:10, color:"#475569" }}>· {ll.person}</span>}
+                  </div>
+                  {ll.memo && <div style={{ fontSize:11, color:"#475569" }}>{ll.memo.slice(0,70)}{ll.memo.length>70?"...":""}</div>}
+                </div>
+              </div>
+            )}
+
             {co.depts.length > 0 && (
               <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
                 {co.depts.map(d => (
                   <div key={d.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0 5px 16px", borderTop:"1px solid #334155" }}>
                     <div style={{ width:3, height:14, borderRadius:2, background:"#334155" }} />
                     <span style={{ flex:1, fontSize:12, color:"#94a3b8" }}>{d.name}</span>
-                    <span style={{ fontSize:14, fontWeight:700, color: d.active_count > 0 ? "#10b981" : "#475569" }}>
-                      {d.active_count || 0}<span style={{ fontSize:10, color:"#64748b" }}>名</span>
+                    {d.start_month && <span style={{ fontSize:10, color:"#475569", background:"#334155", padding:"1px 6px", borderRadius:99 }}>{d.start_month}〜</span>}
+                    <span style={{ fontSize:14, fontWeight:700, color: d.active_count>0?"#10b981":"#475569" }}>
+                      {d.active_count||0}<span style={{ fontSize:10, color:"#64748b" }}>名</span>
                     </span>
                   </div>
                 ))}
@@ -156,7 +203,7 @@ const Dashboard = ({ companies, departments, logs }) => {
 };
 
 // ── KPI進捗 ─────────────────────────────────────────────────
-const KpiView = ({ companies, departments, logs }) => {
+const KpiView = ({ companies, departments, logs, onRefresh }) => {
   const QLABELS = ["Q1  2026年4〜6月","Q2  2026年7〜9月","Q3  2026年10〜12月","Q4  2027年1〜3月"];
   const QTHEMES = ["顧問連携確立・初回訪問","ヒアリング深化・提案開始","面談集中・クロージング加速","刈り取り・KGI達成"];
   const KPI_ROWS = [
@@ -166,11 +213,31 @@ const KpiView = ({ companies, departments, logs }) => {
     { name:"顧問アポ数", tgts:[3,9,9,9] },
   ];
   const acts = [
-    { 稼働件数: departments.reduce((s,d) => s+(d.active_count||0),0), 面談実施数: logs.filter(l=>l.activity_type==="面談実施").length, 候補提示数: logs.filter(l=>l.activity_type==="候補者提案").length, 顧問アポ数: logs.filter(l=>l.activity_type==="顧問からアポ取得").length },
-    { 稼働件数:0, 面談実施数:0, 候補提示数:0, 顧問アポ数:0 },
-    { 稼働件数:0, 面談実施数:0, 候補提示数:0, 顧問アポ数:0 },
-    { 稼働件数:0, 面談実施数:0, 候補提示数:0, 顧問アポ数:0 },
+    { 稼働件数: departments.reduce((s,d)=>s+(d.active_count||0),0), 面談実施数: logs.filter(l=>l.activity_type==="面談実施").length, 候補提示数: logs.filter(l=>l.activity_type==="候補者提案").length, 顧問アポ数: logs.filter(l=>l.activity_type==="顧問からアポ取得").length },
+    { 稼働件数:0,面談実施数:0,候補提示数:0,顧問アポ数:0 },
+    { 稼働件数:0,面談実施数:0,候補提示数:0,顧問アポ数:0 },
+    { 稼働件数:0,面談実施数:0,候補提示数:0,顧問アポ数:0 },
   ];
+
+  const [editingTarget, setEditingTarget] = useState(null);
+  const [targetForm, setTargetForm] = useState({});
+
+  const startEditTarget = (co) => {
+    setEditingTarget(co.id);
+    setTargetForm({ q1:co.q1_target||0, q2:co.q2_target||0, q3:co.q3_target||0, q4:co.q4_target||0 });
+  };
+
+  const saveTarget = async (coId) => {
+    await supabase.from("companies").update({
+      q1_target: parseInt(targetForm.q1)||0,
+      q2_target: parseInt(targetForm.q2)||0,
+      q3_target: parseInt(targetForm.q3)||0,
+      q4_target: parseInt(targetForm.q4)||0,
+    }).eq("id", coId);
+    setEditingTarget(null);
+    onRefresh();
+  };
+
   return (
     <div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
@@ -185,7 +252,7 @@ const KpiView = ({ companies, departments, logs }) => {
               {qi===0 && <div style={{ marginLeft:"auto", fontSize:9, background:"#2563eb", color:"#fff", padding:"2px 8px", borderRadius:99, fontWeight:700 }}>進行中</div>}
             </div>
             {KPI_ROWS.map(k => {
-              const a = acts[qi][k.name] || 0;
+              const a = acts[qi][k.name]||0;
               const p = pct(a, k.tgts[qi]);
               return (
                 <div key={k.name} style={{ marginBottom:10 }}>
@@ -202,44 +269,75 @@ const KpiView = ({ companies, departments, logs }) => {
           </div>
         ))}
       </div>
+
       <div style={S.card}>
-        <div style={{ fontSize:13, fontWeight:600, color:"#f1f5f9", marginBottom:14 }}>企業別 稼働目標</div>
-        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-          <thead>
-            <tr style={{ borderBottom:"1px solid #334155" }}>
-              {["企業名","優先度","Q1","Q2","Q3","Q4","通期","実績","達成率"].map(h => (
-                <th key={h} style={{ padding:"7px 10px", color:"#64748b", fontWeight:600, textAlign:h==="企業名"?"left":"center", whiteSpace:"nowrap" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {companies.map(co => {
-              const act = departments.filter(d=>d.company_id===co.id).reduce((s,d)=>s+(d.active_count||0),0);
-              const tgt = 9;
-              const p = pct(act, tgt);
-              return (
-                <tr key={co.id} style={{ borderBottom:"1px solid #1e293b" }}>
-                  <td style={{ padding:"8px 10px", color:"#f1f5f9", fontSize:11 }}>{co.name}</td>
-                  <td style={{ textAlign:"center", padding:"8px 10px" }}>
-                    <span style={{ fontSize:10, padding:"2px 6px", borderRadius:99, fontWeight:600, background:prioBg(co.priority), color:prioColor(co.priority) }}>{co.priority}</span>
-                  </td>
-                  <td style={{ textAlign:"center", padding:"8px 10px", color:"#475569" }}>─</td>
-                  <td style={{ textAlign:"center", padding:"8px 10px", color:"#475569" }}>─</td>
-                  <td style={{ textAlign:"center", padding:"8px 10px", color:"#475569" }}>─</td>
-                  <td style={{ textAlign:"center", padding:"8px 10px", color:"#475569" }}>─</td>
-                  <td style={{ textAlign:"center", padding:"8px 10px", fontWeight:700, color:"#f1f5f9" }}>{tgt}</td>
-                  <td style={{ textAlign:"center", padding:"8px 10px", color:"#10b981", fontWeight:700 }}>{act}</td>
-                  <td style={{ padding:"8px 10px", minWidth:80 }}>
-                    <div style={{ height:4, background:"#334155", borderRadius:99, overflow:"hidden" }}>
-                      <div style={{ width:`${p}%`, height:"100%", background:p>=100?"#10b981":"#3b82f6", borderRadius:99 }} />
-                    </div>
-                    <div style={{ textAlign:"center", fontSize:9, color:"#64748b", marginTop:2 }}>{p}%</div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div style={{ fontSize:13, fontWeight:600, color:"#f1f5f9", marginBottom:4 }}>企業別 稼働目標・実績</div>
+        <div style={{ fontSize:11, color:"#475569", marginBottom:14 }}>✏️ 各行の「編集」ボタンでQ別目標数値を変更できます</div>
+        <div style={{ overflowX:"auto" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+            <thead>
+              <tr style={{ borderBottom:"1px solid #334155" }}>
+                {["企業名","優先度","Q1","Q2","Q3","Q4","通期目標","実績","達成率",""].map(h => (
+                  <th key={h} style={{ padding:"7px 10px", color:"#64748b", fontWeight:600, textAlign:h==="企業名"?"left":"center", whiteSpace:"nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {companies.map(co => {
+                const act = departments.filter(d=>d.company_id===co.id).reduce((s,d)=>s+(d.active_count||0),0);
+                const q1  = co.q1_target||0;
+                const q2  = co.q2_target||0;
+                const q3  = co.q3_target||0;
+                const q4  = co.q4_target||0;
+                const tgt = q1+q2+q3+q4;
+                const p   = pct(act, tgt);
+                const isEditing = editingTarget === co.id;
+                return (
+                  <tr key={co.id} style={{ borderBottom:"1px solid #1e293b" }}>
+                    <td style={{ padding:"8px 10px", color:"#f1f5f9", fontSize:11 }}>{co.name.replace("株式会社","").replace("合同会社","").trim()}</td>
+                    <td style={{ textAlign:"center", padding:"8px 10px" }}>
+                      <span style={{ fontSize:10, padding:"2px 6px", borderRadius:99, fontWeight:600, background:prioBg(co.priority), color:prioColor(co.priority) }}>{co.priority}</span>
+                    </td>
+                    {isEditing ? (
+                      ["q1","q2","q3","q4"].map(q => (
+                        <td key={q} style={{ padding:"4px 6px" }}>
+                          <input type="number" min="0" value={targetForm[q]}
+                            onChange={e=>setTargetForm(f=>({...f,[q]:e.target.value}))}
+                            style={{ ...S.input, width:52, padding:"4px 6px", fontSize:12, textAlign:"center" }} />
+                        </td>
+                      ))
+                    ) : (
+                      [q1,q2,q3,q4].map((v,i) => (
+                        <td key={i} style={{ textAlign:"center", padding:"8px 10px" }}>
+                          <div style={{ color:v>0?"#f1f5f9":"#475569", fontWeight:v>0?600:400 }}>{v||"─"}</div>
+                          {i===0 && <div style={{ fontSize:9, color:"#10b981", marginTop:1 }}>{act}名実績</div>}
+                        </td>
+                      ))
+                    )}
+                    <td style={{ textAlign:"center", padding:"8px 10px", fontWeight:700, color:"#f1f5f9" }}>{tgt}</td>
+                    <td style={{ textAlign:"center", padding:"8px 10px", color:"#10b981", fontWeight:700 }}>{act}</td>
+                    <td style={{ padding:"8px 10px", minWidth:80 }}>
+                      <div style={{ height:4, background:"#334155", borderRadius:99, overflow:"hidden" }}>
+                        <div style={{ width:`${p}%`, height:"100%", background:p>=100?"#10b981":"#3b82f6", borderRadius:99 }} />
+                      </div>
+                      <div style={{ textAlign:"center", fontSize:9, color:"#64748b", marginTop:2 }}>{p}%</div>
+                    </td>
+                    <td style={{ padding:"6px 8px", textAlign:"center" }}>
+                      {isEditing ? (
+                        <div style={{ display:"flex", gap:4 }}>
+                          <button onClick={()=>saveTarget(co.id)} style={{ ...S.btn, padding:"3px 8px", background:"#2563eb", color:"#fff", fontSize:10 }}>保存</button>
+                          <button onClick={()=>setEditingTarget(null)} style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:10 }}>戻る</button>
+                        </div>
+                      ) : (
+                        <button onClick={()=>startEditTarget(co)} style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:10 }}>編集</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -429,13 +527,13 @@ const LogView = ({ logs, companies, departments, loading }) => {
 };
 
 // ── ヒアリングシート ────────────────────────────────────────
-const HearingView = ({ companies, departments, hearingData, onSaveHearing, onSaveLog }) => {
+const HearingView = ({ companies, departments, keyPersons, hearingData, onSaveHearing, onSaveLog }) => {
   const [coId,    setCoId]    = useState(companies[0]?.id || "");
   const [answers, setAnswers] = useState({});
   const [checks,  setChecks]  = useState({});
   const [saving,  setSaving]  = useState(false);
   const [savedAsLog, setSavedAsLog] = useState(false);
-  const [visitInfo, setVisitInfo] = useState({ date:"", person:"", partner:"", partner_dept:"" });
+  const [visitInfo, setVisitInfo] = useState({ date:"", person:"", partner:"", partner_kp:"", partner_dept:"" });
 
   useEffect(() => {
     if (!coId) return;
@@ -496,11 +594,26 @@ const HearingView = ({ companies, departments, hearingData, onSaveHearing, onSav
       <div style={{ ...S.card, marginBottom:14 }}>
         <div style={{ fontSize:12, fontWeight:600, color:"#f1f5f9", marginBottom:10 }}>基本情報</div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
-          {[["訪問日","date","date"],["担当営業","person","text"],["面談相手氏名","partner","text"],["面談相手の部署","partner_dept","text"]].map(([l,k,t]) => (
-            <FormField key={k} label={l}>
-              <input type={t} value={visitInfo[k]} onChange={e=>setVisitInfo(v=>({...v,[k]:e.target.value}))} style={S.input} placeholder={l} />
-            </FormField>
-          ))}
+          <FormField label="訪問日">
+            <input type="date" value={visitInfo.date} onChange={e=>setVisitInfo(v=>({...v,date:e.target.value}))} style={S.input} />
+          </FormField>
+          <FormField label="担当営業">
+            <input value={visitInfo.person} onChange={e=>setVisitInfo(v=>({...v,person:e.target.value}))} style={S.input} placeholder="担当営業" />
+          </FormField>
+          <FormField label="面談相手（キーマン）">
+            <select value={visitInfo.partner_kp||""} onChange={e=>setVisitInfo(v=>({...v,partner_kp:e.target.value,partner:e.target.value}))} style={S.input}>
+              <option value="">（未選択 / 直接入力）</option>
+              {keyPersons.filter(kp=>{
+                const co = companies.find(c=>c.id===coId);
+                return co && kp.company_id===co.id;
+              }).map(kp=>(
+                <option key={kp.id} value={kp.name}>{kp.name}{kp.title?" ("+kp.title+")":""}</option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="面談相手の部署">
+            <input value={visitInfo.partner_dept} onChange={e=>setVisitInfo(v=>({...v,partner_dept:e.target.value}))} style={S.input} placeholder="面談相手の部署" />
+          </FormField>
         </div>
       </div>
 
@@ -546,7 +659,7 @@ const HearingView = ({ companies, departments, hearingData, onSaveHearing, onSav
 };
 
 // ── 企業管理 ────────────────────────────────────────────────
-const CompanyManager = ({ companies, departments, onRefresh }) => {
+const CompanyManager = ({ companies, departments, keyPersons, onRefresh }) => {
   const [editCo,  setEditCo]  = useState(null);
   const [editDept,setEditDept]= useState(null);
   const [newCoForm, setNewCoForm] = useState({ name:"", priority:"重要", category:"", unit_range:"", note:"" });
@@ -577,13 +690,67 @@ const CompanyManager = ({ companies, departments, onRefresh }) => {
   };
 
   const saveDept = async (dept) => {
-    await supabase.from("departments").update({ name:dept.name, active_count:dept.active_count }).eq("id", dept.id);
+    await supabase.from("departments").update({ name:dept.name, active_count:dept.active_count, start_month:dept.start_month||null }).eq("id", dept.id);
     setEditDept(null); onRefresh();
   };
 
   const deleteDept = async (id) => {
     await supabase.from("departments").delete().eq("id", id);
     onRefresh();
+  };
+
+  // ── キーマン管理 ─────────────────────────────────────────
+  const [editKp,   setEditKp]   = useState(null);
+  const [newKpForm, setNewKpForm] = useState({ name:"", title:"", email:"", phone:"", notes:"" });
+  const [addingKp,  setAddingKp]  = useState(null); // company_id
+
+  const saveKp = async (form) => {
+    if (form.id) {
+      await supabase.from("key_persons").update({
+        name:form.name, title:form.title, email:form.email,
+        phone:form.phone, notes:form.notes, department_id:form.department_id||null
+      }).eq("id", form.id);
+    } else {
+      await supabase.from("key_persons").insert([{
+        company_id:form.company_id, department_id:form.department_id||null,
+        name:form.name, title:form.title, email:form.email,
+        phone:form.phone, notes:form.notes
+      }]);
+    }
+    setEditKp(null); setAddingKp(null);
+    setNewKpForm({ name:"", title:"", email:"", phone:"", notes:"" });
+    onRefresh();
+  };
+
+  const deleteKp = async (id) => {
+    if (!window.confirm("このキーマンを削除しますか？")) return;
+    await supabase.from("key_persons").delete().eq("id", id);
+    onRefresh();
+  };
+
+  const KpForm = ({ initial, coId, depts, onSave, onCancel }) => {
+    const [form, setForm] = useState({ ...initial, company_id:coId, department_id:"" });
+    return (
+      <div style={{ background:"#0f172a", borderRadius:8, padding:10, marginTop:6 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+          <div><label style={S.label}>氏名</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={S.input} placeholder="例: 田中 太郎" /></div>
+          <div><label style={S.label}>役職</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={S.input} placeholder="例: 部長" /></div>
+          <div><label style={S.label}>部署</label>
+            <select value={form.department_id||""} onChange={e=>setForm(f=>({...f,department_id:e.target.value}))} style={S.input}>
+              <option value="">（未選択）</option>
+              {depts.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+          <div><label style={S.label}>メール</label><input value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} style={S.input} placeholder="例: tanaka@example.com" /></div>
+          <div><label style={S.label}>電話</label><input value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} style={S.input} placeholder="例: 03-xxxx-xxxx" /></div>
+          <div><label style={S.label}>メモ</label><input value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} style={S.input} placeholder="関係性・特記事項など" /></div>
+        </div>
+        <div style={{ display:"flex", justifyContent:"flex-end", gap:6 }}>
+          <button onClick={onCancel} style={{ ...S.btn, padding:"4px 10px", background:"#334155", color:"#94a3b8", fontSize:11 }}>キャンセル</button>
+          <button onClick={()=>onSave(form)} style={{ ...S.btn, padding:"4px 10px", background:"#2563eb", color:"#fff", fontSize:11 }}>保存</button>
+        </div>
+      </div>
+    );
   };
 
   const CoForm = ({ initial, onSave, onCancel }) => {
@@ -655,8 +822,12 @@ const CompanyManager = ({ companies, departments, onRefresh }) => {
                           <>
                             <input value={editDept.name} onChange={e=>setEditDept(ed=>({...ed,name:e.target.value}))} style={{ ...S.input, flex:1, padding:"4px 8px", fontSize:12 }} />
                             <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                              <span style={{ fontSize:11, color:"#64748b" }}>開始月</span>
+                              <input value={editDept.start_month||""} onChange={e=>setEditDept(ed=>({...ed,start_month:e.target.value}))} placeholder="例: 2026-04" style={{ ...S.input, width:90, padding:"4px 8px", fontSize:12 }} />
+                            </div>
+                            <div style={{ display:"flex", alignItems:"center", gap:4 }}>
                               <span style={{ fontSize:11, color:"#64748b" }}>稼働数</span>
-                              <input type="number" min="0" value={editDept.active_count} onChange={e=>setEditDept(ed=>({...ed,active_count:parseInt(e.target.value)||0}))} style={{ ...S.input, width:60, padding:"4px 8px", fontSize:12, textAlign:"center" }} />
+                              <input type="number" min="0" value={editDept.active_count||0} onChange={e=>setEditDept(ed=>({...ed,active_count:parseInt(e.target.value)||0}))} style={{ ...S.input, width:55, padding:"4px 8px", fontSize:12, textAlign:"center" }} />
                             </div>
                             <button onClick={()=>saveDept(editDept)} style={{ ...S.btn, padding:"4px 10px", background:"#2563eb", color:"#fff", fontSize:11 }}>保存</button>
                             <button onClick={()=>setEditDept(null)} style={{ ...S.btn, padding:"4px 10px", background:"#334155", color:"#94a3b8", fontSize:11 }}>戻る</button>
@@ -674,6 +845,51 @@ const CompanyManager = ({ companies, departments, onRefresh }) => {
                     <div style={{ display:"flex", gap:8, marginTop:10 }}>
                       <input value={newDeptName} onChange={e=>setNewDeptName(e.target.value)} placeholder="新しい部署名" style={{ ...S.input, flex:1, fontSize:12 }} onKeyDown={e=>e.key==="Enter"&&addDept(co.id)} />
                       <button onClick={()=>addDept(co.id)} style={{ ...S.btn, background:"#2563eb", color:"#fff", fontSize:12 }}>追加</button>
+                    </div>
+
+                    {/* キーマン一覧 */}
+                    <div style={{ marginTop:14, borderTop:"1px solid #334155", paddingTop:10 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                        <div style={{ fontSize:12, fontWeight:600, color:"#94a3b8" }}>👤 キーマン一覧</div>
+                        <button onClick={()=>setAddingKp(co.id)} style={{ ...S.btn, padding:"3px 8px", background:"#2563eb", color:"#fff", fontSize:11 }}>＋ 追加</button>
+                      </div>
+                      {addingKp === co.id && (
+                        <KpForm initial={newKpForm} coId={co.id} depts={coDepts}
+                          onSave={saveKp} onCancel={()=>setAddingKp(null)} />
+                      )}
+                      {keyPersons.filter(kp=>kp.company_id===co.id).map(kp => {
+                        const dept = departments.find(d=>d.id===kp.department_id);
+                        return (
+                          <div key={kp.id} style={{ padding:"7px 0", borderBottom:"1px solid #1e293b" }}>
+                            {editKp?.id === kp.id ? (
+                              <KpForm initial={editKp} coId={co.id} depts={coDepts}
+                                onSave={saveKp} onCancel={()=>setEditKp(null)} />
+                            ) : (
+                              <div style={{ display:"flex", alignItems:"flex-start", gap:8 }}>
+                                <div style={{ flex:1 }}>
+                                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                    <span style={{ fontSize:12, fontWeight:600, color:"#f1f5f9" }}>{kp.name}</span>
+                                    {kp.title && <span style={{ fontSize:10, color:"#64748b", background:"#334155", padding:"1px 6px", borderRadius:99 }}>{kp.title}</span>}
+                                    {dept && <span style={{ fontSize:10, color:"#3b82f6" }}>{dept.name}</span>}
+                                  </div>
+                                  {(kp.email||kp.phone) && (
+                                    <div style={{ fontSize:10, color:"#475569", marginTop:2 }}>
+                                      {kp.email && <span style={{ marginRight:10 }}>✉ {kp.email}</span>}
+                                      {kp.phone && <span>📞 {kp.phone}</span>}
+                                    </div>
+                                  )}
+                                  {kp.notes && <div style={{ fontSize:10, color:"#475569", marginTop:2 }}>{kp.notes}</div>}
+                                </div>
+                                <button onClick={()=>setEditKp({...kp})} style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:11 }}>編集</button>
+                                <button onClick={()=>deleteKp(kp.id)} style={{ ...S.btn, padding:"3px 8px", background:"#7f1d1d", color:"#fca5a5", fontSize:11 }}>削除</button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {keyPersons.filter(kp=>kp.company_id===co.id).length === 0 && !addingKp && (
+                        <div style={{ fontSize:11, color:"#475569", textAlign:"center", padding:"8px 0" }}>キーマン未登録</div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -767,10 +983,10 @@ const StrategyView = ({ companies, strategies, onRefresh }) => {
 };
 
 // ── 活動記録モーダル ────────────────────────────────────────
-const LogModal = ({ companies, departments, onClose, onSave }) => {
+const LogModal = ({ companies, departments, keyPersons, onClose, onSave }) => {
   const [form, setForm] = useState({
     company:"", department:"", date:new Date().toISOString().slice(0,10),
-    person:"", activity_type:"候補者提案", phase:"P3:提案・商談",
+    person:"", partner_name:"", activity_type:"候補者提案", phase:"P3:提案・商談",
     status:"進行中", probability:"C（商談中）", memo:"", next_action:"",
   });
   const [saving, setSaving] = useState(false);
@@ -876,18 +1092,20 @@ export default function App() {
   const [hearingData,  setHearingData]  = useState([]);
   const [salesProcess, setSalesProcess] = useState([]);
   const [strategies,   setStrategies]   = useState([]);
+  const [keyPersons,   setKeyPersons]   = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [showModal,    setShowModal]    = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [cos, depts, ls, hd, sp, st] = await Promise.all([
+    const [cos, depts, ls, hd, sp, st, kp] = await Promise.all([
       supabase.from("companies").select("*").order("sort_order"),
       supabase.from("departments").select("*").order("sort_order"),
       supabase.from("activity_logs").select("*").order("date", { ascending:false }),
       supabase.from("hearing_answers").select("*"),
       supabase.from("sales_process").select("*"),
       supabase.from("company_strategy").select("*"),
+      supabase.from("key_persons").select("*").order("created_at"),
     ]);
     setCompanies(cos.data   || []);
     setDepartments(depts.data || []);
@@ -895,6 +1113,7 @@ export default function App() {
     setHearingData(hd.data  || []);
     setSalesProcess(sp.data || []);
     setStrategies(st.data   || []);
+    setKeyPersons(kp.data   || []);
     setLoading(false);
   }, []);
 
@@ -938,11 +1157,11 @@ export default function App() {
 
   const views = {
     dashboard: <Dashboard companies={companies} departments={departments} logs={logs} />,
-    kpi:       <KpiView   companies={companies} departments={departments} logs={logs} />,
+    kpi:       <KpiView   companies={companies} departments={departments} logs={logs} onRefresh={fetchAll} />,
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
-    hearing:   <HearingView companies={companies} departments={departments} hearingData={hearingData} onSaveHearing={saveHearing} onSaveLog={saveLog} />,
-    companies: <CompanyManager companies={companies} departments={departments} onRefresh={fetchAll} />,
+    hearing:   <HearingView companies={companies} departments={departments} keyPersons={keyPersons} hearingData={hearingData} onSaveHearing={saveHearing} onSaveLog={saveLog} />,
+    companies: <CompanyManager companies={companies} departments={departments} keyPersons={keyPersons} onRefresh={fetchAll} />,
     strategy:  <StrategyView companies={companies} strategies={strategies} onRefresh={fetchAll} />,
   };
 
@@ -1003,7 +1222,7 @@ export default function App() {
       </div>
 
       {showModal && (
-        <LogModal companies={companies} departments={departments} onClose={()=>setShowModal(false)} onSave={saveLog} />
+        <LogModal companies={companies} departments={departments} keyPersons={keyPersons} onClose={()=>setShowModal(false)} onSave={saveLog} />
       )}
     </div>
   );
