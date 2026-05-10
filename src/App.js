@@ -163,22 +163,22 @@ const Dashboard = ({ companies, departments, logs }) => {
       {/* 今日のアクション・期限超過 */}
       {(() => {
         const today = new Date().toISOString().slice(0,10);
-        // next_action_date が設定されているログで判定
+        // 保留中でない企業名のセット
+        const activeCoNames = new Set(companies.filter(c => c.is_active !== false).map(c => c.name));
+        // next_action_date が明示的に設定されている場合のみアラート表示
         const overdue = logs.filter(l => {
           if (!l.next_action || l.next_action === "") return false;
+          if (!l.next_action_date || l.next_action_date === "") return false; // 期日未設定は除外
           if (l.status === "完了" || l.status === "見送り") return false;
-          if (l.next_action_date) return l.next_action_date < today;
-          // 期日未設定の場合は活動日から7日超で期限超過とみなす
-          const diffDays = (new Date(today) - new Date(l.date)) / (1000*60*60*24);
-          return diffDays > 7;
+          if (!activeCoNames.has(l.company)) return false; // 保留中企業は除外
+          return l.next_action_date < today;
         });
         const dueToday = logs.filter(l => {
           if (!l.next_action || l.next_action === "") return false;
+          if (!l.next_action_date || l.next_action_date === "") return false; // 期日未設定は除外
           if (l.status === "完了" || l.status === "見送り") return false;
-          if (l.next_action_date) return l.next_action_date === today;
-          // 期日未設定の場合は活動日から3〜7日で「今日対応すべき」
-          const diffDays = (new Date(today) - new Date(l.date)) / (1000*60*60*24);
-          return diffDays >= 3 && diffDays <= 7;
+          if (!activeCoNames.has(l.company)) return false; // 保留中企業は除外
+          return l.next_action_date === today;
         });
         if (overdue.length === 0 && dueToday.length === 0) return null;
         return (
