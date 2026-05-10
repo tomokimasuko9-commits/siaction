@@ -116,7 +116,7 @@ const Dashboard = ({ companies, departments, logs }) => {
   const [dragIdx,   setDragIdx]   = useState(null);
 
   useEffect(() => {
-    setSortedCos([...companies].sort((a,b) => (a.sort_order||0)-(b.sort_order||0)));
+    setSortedCos([...companies].filter(c => c.is_active !== false).sort((a,b) => (a.sort_order||0)-(b.sort_order||0)));
   }, [companies]);
 
   const handleDragStart = (idx) => setDragIdx(idx);
@@ -888,7 +888,7 @@ const CompanyManager = ({ companies, departments, keyPersons, onRefresh }) => {
         const coDepts = departments.filter(d => d.company_id === co.id);
         const isOpen  = expandedCo[co.id];
         return (
-          <div key={co.id} style={S.card}>
+          <div key={co.id} style={{ ...S.card, opacity: co.is_active===false ? 0.6 : 1, borderColor: co.is_active===false?"#1e3a5f":undefined }}>
             {editCo?.id === co.id ? (
               <CoForm initial={editCo} onSave={saveCo} onCancel={()=>setEditCo(null)} />
             ) : (
@@ -898,6 +898,12 @@ const CompanyManager = ({ companies, departments, keyPersons, onRefresh }) => {
                   <span style={{ flex:1, fontSize:13, fontWeight:600, color:"#f1f5f9" }}>{co.name}</span>
                   {co.category && <span style={{ fontSize:11, color:"#64748b" }}>{co.category}</span>}
                   {co.unit_range && <span style={{ fontSize:11, color:"#475569" }}>{co.unit_range}</span>}
+                  <button onClick={async()=>{
+                    await supabase.from("companies").update({ is_active: co.is_active === false ? true : false }).eq("id", co.id);
+                    onRefresh();
+                  }} style={{ ...S.btn, padding:"4px 10px", background: co.is_active===false?"#365314":"#334155", color: co.is_active===false?"#86efac":"#94a3b8", fontSize:11 }}>
+                    {co.is_active === false ? "▶ 再開" : "⏸ 保留"}
+                  </button>
                   <button onClick={()=>setEditCo({...co})} style={{ ...S.btn, padding:"4px 10px", background:"#334155", color:"#94a3b8", fontSize:11 }}>編集</button>
                   <button onClick={()=>deleteCo(co.id)} style={{ ...S.btn, padding:"4px 10px", background:"#7f1d1d", color:"#fca5a5", fontSize:11 }}>削除</button>
                   <button onClick={()=>setExpandedCo(e=>({...e,[co.id]:!e[co.id]}))} style={{ background:"none", border:"none", color:"#64748b", cursor:"pointer", fontSize:14 }}>{isOpen?"▲":"▼"}</button>
