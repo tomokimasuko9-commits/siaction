@@ -1,10 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   "https://vxhkmjmrjzdsozfaggsu.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4aGttam1yanpkc296ZmFnZ3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzOTY2MjgsImV4cCI6MjA5Mzk3MjYyOH0.e7ncLRc67n6i3AwA5btRrZ1TsYSqTH4Wh4F9es5Clww"
 );
+
+// ── デフォルトテーマ定義 ──────────────────────────────────────
+const DEFAULT_THEME = {
+  bgApp:"#0f172a", bgSidebar:"#1e293b", bgCard:"#1e293b", bgInput:"#0f172a",
+  bgTopbar:"#1e293b",
+  textPrimary:"#f1f5f9", textSecondary:"#94a3b8", textMuted:"#475569",
+  textLabel:"#64748b",
+  accentBlue:"#3b82f6", accentPurple:"#8b5cf6", accentGreen:"#10b981",
+  accentRed:"#ef4444", accentAmber:"#f59e0b",
+  border:"#334155",
+  fontXs:10, fontSm:11, fontBase:13, fontLg:15, fontXl:18, fontTitle:22,
+};
+const ThemeCtx = React.createContext(DEFAULT_THEME);
+const useTheme = () => React.useContext(ThemeCtx);
 
 // ── ユーティリティ ──────────────────────────────────────────
 const phaseColor = (p) => {
@@ -1083,6 +1097,89 @@ const LogModal = ({ companies, departments, keyPersons, onClose, onSave }) => {
   );
 };
 
+// ── テーマ設定パネル ─────────────────────────────────────────
+const ThemePanel = ({ theme, onChange, onClose }) => {
+  const T = theme;
+  const Row = ({ label, themeKey, type="color" }) => (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 0", borderBottom:"1px solid "+T.border }}>
+      <span style={{ fontSize:12, color:T.textSecondary }}>{label}</span>
+      {type === "color" ? (
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <input type="color" value={theme[themeKey]} onChange={e=>onChange(themeKey, e.target.value)}
+            style={{ width:36, height:28, border:"none", borderRadius:6, cursor:"pointer", background:"none" }} />
+          <span style={{ fontSize:11, color:T.textMuted, fontFamily:"monospace" }}>{theme[themeKey]}</span>
+        </div>
+      ) : (
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <input type="range" min={8} max={24} value={theme[themeKey]}
+            onChange={e=>onChange(themeKey, parseInt(e.target.value))}
+            style={{ width:80 }} />
+          <span style={{ fontSize:11, color:T.textMuted, minWidth:24 }}>{theme[themeKey]}px</span>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ background:T.bgCard, border:"1px solid "+T.border, borderRadius:16, padding:24, width:480, maxHeight:"85vh", overflowY:"auto" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+          <div style={{ fontSize:15, fontWeight:700, color:T.textPrimary }}>🎨 テーマ設定</div>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:T.textMuted, fontSize:20, cursor:"pointer" }}>✕</button>
+        </div>
+
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:11, color:T.textLabel, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:8, fontWeight:600 }}>背景色</div>
+          <Row label="アプリ背景"     themeKey="bgApp" />
+          <Row label="サイドバー背景" themeKey="bgSidebar" />
+          <Row label="カード背景"     themeKey="bgCard" />
+          <Row label="トップバー背景" themeKey="bgTopbar" />
+          <Row label="入力欄背景"     themeKey="bgInput" />
+        </div>
+
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:11, color:T.textLabel, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:8, fontWeight:600 }}>文字色</div>
+          <Row label="メインテキスト"     themeKey="textPrimary" />
+          <Row label="サブテキスト"       themeKey="textSecondary" />
+          <Row label="薄いテキスト"       themeKey="textMuted" />
+          <Row label="ラベル"             themeKey="textLabel" />
+          <Row label="ボーダー"           themeKey="border" />
+        </div>
+
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:11, color:T.textLabel, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:8, fontWeight:600 }}>アクセントカラー</div>
+          <Row label="ブルー（メイン）"   themeKey="accentBlue" />
+          <Row label="パープル（KGI）"    themeKey="accentPurple" />
+          <Row label="グリーン（達成）"   themeKey="accentGreen" />
+          <Row label="レッド（警告）"     themeKey="accentRed" />
+          <Row label="アンバー（進行中）" themeKey="accentAmber" />
+        </div>
+
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:11, color:T.textLabel, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:8, fontWeight:600 }}>文字サイズ</div>
+          <Row label="極小（注釈）"   themeKey="fontXs"    type="range" />
+          <Row label="小（ラベル）"   themeKey="fontSm"    type="range" />
+          <Row label="標準（本文）"   themeKey="fontBase"  type="range" />
+          <Row label="大（見出し）"   themeKey="fontLg"    type="range" />
+          <Row label="特大（数値）"   themeKey="fontXl"    type="range" />
+          <Row label="タイトル"       themeKey="fontTitle" type="range" />
+        </div>
+
+        <div style={{ display:"flex", gap:10, marginTop:20 }}>
+          <button onClick={() => onChange("_reset", null)}
+            style={{ flex:1, padding:"9px 0", background:T.border, color:T.textSecondary, border:"none", borderRadius:8, fontSize:13, cursor:"pointer", fontWeight:600 }}>
+            リセット
+          </button>
+          <button onClick={onClose}
+            style={{ flex:2, padding:"9px 0", background:T.accentBlue, color:"#fff", border:"none", borderRadius:8, fontSize:13, cursor:"pointer", fontWeight:600 }}>
+            閉じる（自動保存済み）
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── メインアプリ ────────────────────────────────────────────
 export default function App() {
   const [tab,          setTab]          = useState("dashboard");
@@ -1095,6 +1192,24 @@ export default function App() {
   const [keyPersons,   setKeyPersons]   = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [showModal,    setShowModal]    = useState(false);
+  const [showTheme,    setShowTheme]    = useState(false);
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem("sier_theme");
+      return saved ? { ...DEFAULT_THEME, ...JSON.parse(saved) } : DEFAULT_THEME;
+    } catch { return DEFAULT_THEME; }
+  });
+
+  const handleThemeChange = (key, val) => {
+    if (key === "_reset") {
+      setTheme(DEFAULT_THEME);
+      localStorage.removeItem("sier_theme");
+      return;
+    }
+    const next = { ...theme, [key]: val };
+    setTheme(next);
+    try { localStorage.setItem("sier_theme", JSON.stringify(next)); } catch {}
+  };
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -1166,6 +1281,7 @@ export default function App() {
   };
 
   return (
+    <ThemeCtx.Provider value={theme}>
     <div style={S.app}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
 
@@ -1196,12 +1312,16 @@ export default function App() {
             </div>
           ))}
         </div>
-        <div style={{ padding:"12px 16px", borderTop:"1px solid #334155" }}>
-          <div style={{ fontSize:9, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:5 }}>KGI達成まで</div>
-          <div style={{ fontSize:18, fontWeight:700, color:"#818cf8" }}>{60-kgiCurrent}件</div>
-          <div style={{ height:3, background:"#334155", borderRadius:99, overflow:"hidden", marginTop:6 }}>
-            <div style={{ width:`${kgiPct}%`, height:"100%", background:"linear-gradient(90deg,#3b82f6,#8b5cf6)", borderRadius:99 }} />
+        <div style={{ padding:"12px 16px", borderTop:"1px solid "+theme.border }}>
+          <div style={{ fontSize:9, color:theme.textMuted, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:5 }}>KGI達成まで</div>
+          <div style={{ fontSize:18, fontWeight:700, color:theme.accentPurple }}>{60-kgiCurrent}件</div>
+          <div style={{ height:3, background:theme.border, borderRadius:99, overflow:"hidden", marginTop:6 }}>
+            <div style={{ width:`${kgiPct}%`, height:"100%", background:`linear-gradient(90deg,${theme.accentBlue},${theme.accentPurple})`, borderRadius:99 }} />
           </div>
+          <button onClick={()=>setShowTheme(true)}
+            style={{ marginTop:10, width:"100%", padding:"7px 0", background:theme.border, color:theme.textSecondary, border:"none", borderRadius:8, fontSize:12, cursor:"pointer", fontWeight:600 }}>
+            🎨 テーマ設定
+          </button>
         </div>
       </div>
 
@@ -1224,6 +1344,10 @@ export default function App() {
       {showModal && (
         <LogModal companies={companies} departments={departments} keyPersons={keyPersons} onClose={()=>setShowModal(false)} onSave={saveLog} />
       )}
+      {showTheme && (
+        <ThemePanel theme={theme} onChange={handleThemeChange} onClose={()=>setShowTheme(false)} />
+      )}
     </div>
+    </ThemeCtx.Provider>
   );
 }
