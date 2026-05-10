@@ -20,6 +20,21 @@ const DEFAULT_THEME = {
 const ThemeCtx = React.createContext(DEFAULT_THEME);
 const useTheme = () => React.useContext(ThemeCtx);
 
+// ── グローバルスタイル定数（ハードコード・App関数外）──────────
+const S = {
+  app:   { fontFamily:"'DM Sans',sans-serif", background:"#0f172a", minHeight:"100vh", color:"#f1f5f9", display:"flex" },
+  side:  { width:210, background:"#1e293b", borderRight:"1px solid #334155", display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, bottom:0, zIndex:10 },
+  main:  { marginLeft:210, flex:1, display:"flex", flexDirection:"column", minHeight:"100vh" },
+  topbar:{ padding:"14px 24px", borderBottom:"1px solid #334155", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#1e293b", position:"sticky", top:0, zIndex:5 },
+  card:  { background:"#1e293b", border:"1px solid #334155", borderRadius:12, padding:"14px 18px", marginBottom:10 },
+  input: { width:"100%", background:"#0f172a", border:"1px solid #334155", borderRadius:8, padding:"8px 12px", fontSize:13, color:"#f1f5f9", outline:"none" },
+  label: { fontSize:11, color:"#64748b", marginBottom:4, display:"block", textTransform:"uppercase", letterSpacing:"0.6px" },
+  btn:   { padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:600 },
+  tag:   { fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:600, display:"inline-block" },
+  modal: { position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center" },
+  mbox:  { background:"#1e293b", border:"1px solid #334155", borderRadius:16, padding:24, width:560, maxHeight:"88vh", overflowY:"auto" },
+};
+
 // ── ユーティリティ ──────────────────────────────────────────
 const phaseColor = (p) => {
   if (!p) return "#475569";
@@ -1339,21 +1354,6 @@ export default function App() {
     } catch { return DEFAULT_THEME; }
   });
 
-  // S はtheme に依存するのでApp関数内で定義
-  const S = {
-    app:   { fontFamily:"'DM Sans',sans-serif", background:theme.bgApp, minHeight:"100vh", color:theme.textPrimary, display:"flex" },
-    side:  { width:210, background:theme.bgSidebar, borderRight:"1px solid "+theme.border, display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, bottom:0, zIndex:10 },
-    main:  { marginLeft:210, flex:1, display:"flex", flexDirection:"column", minHeight:"100vh" },
-    topbar:{ padding:"14px 24px", borderBottom:"1px solid "+theme.border, display:"flex", alignItems:"center", justifyContent:"space-between", background:theme.bgTopbar, position:"sticky", top:0, zIndex:5 },
-    card:  { background:theme.bgCard, border:"1px solid "+theme.border, borderRadius:12, padding:"14px 18px", marginBottom:10 },
-    input: { width:"100%", background:theme.bgInput, border:"1px solid "+theme.border, borderRadius:8, padding:"8px 12px", fontSize:theme.fontBase, color:theme.textPrimary, outline:"none" },
-    label: { fontSize:theme.fontXs, color:theme.textLabel, marginBottom:4, display:"block", textTransform:"uppercase", letterSpacing:"0.6px" },
-    btn:   { padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:theme.fontBase, fontWeight:600 },
-    tag:   { fontSize:theme.fontSm, padding:"2px 8px", borderRadius:99, fontWeight:600, display:"inline-block" },
-    modal: { position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center" },
-    mbox:  { background:theme.bgCard, border:"1px solid "+theme.border, borderRadius:16, padding:24, width:560, maxHeight:"88vh", overflowY:"auto" },
-  };
-
   const handleThemeChange = (key, val) => {
     if (key === "_reset") {
       setTheme(DEFAULT_THEME);
@@ -1451,11 +1451,11 @@ export default function App() {
 
   return (
     <ThemeCtx.Provider value={theme}>
-    <div style={S.app}>
+    <div style={{ ...S.app, background:theme.bgApp, color:theme.textPrimary, fontSize:theme.fontBase }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
 
       {/* サイドバー */}
-      <div style={S.side}>
+      <div style={{ ...S.side, background:theme.bgSidebar, borderRight:"1px solid "+theme.border }}>
         <div style={{ padding:"16px 18px", borderBottom:"1px solid #334155" }}>
           <div style={{ fontSize:theme.fontLg, fontWeight:700, letterSpacing:"-0.5px", color:theme.textPrimary }}>SIerSales</div>
           <div style={{ fontSize:theme.fontXs, color:theme.textMuted, marginTop:2 }}>開拓営業管理システム</div>
@@ -1496,7 +1496,7 @@ export default function App() {
 
       {/* メインコンテンツ */}
       <div style={S.main}>
-        <div style={S.topbar}>
+        <div style={{ ...S.topbar, background:theme.bgTopbar, borderBottom:"1px solid "+theme.border }}>
           <div style={{ fontSize:18, fontWeight:700, letterSpacing:"-0.3px" }}>
             {TABS.find(t=>t.id===tab)?.label}
           </div>
