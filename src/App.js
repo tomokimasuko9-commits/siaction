@@ -163,21 +163,21 @@ const Dashboard = ({ companies, departments, logs }) => {
       {/* 今日のアクション・期限超過 */}
       {(() => {
         const today = new Date().toISOString().slice(0,10);
-        const todayMs = new Date(today).getTime();
-        // next_action があるログのうち、活動日から7日以上経過しているものを期限超過とみなす
+        // next_action_date が設定されているログで判定
         const overdue = logs.filter(l => {
           if (!l.next_action || l.next_action === "") return false;
           if (l.status === "完了" || l.status === "見送り") return false;
-          const logDate = new Date(l.date).getTime();
-          const diffDays = (todayMs - logDate) / (1000 * 60 * 60 * 24);
+          if (l.next_action_date) return l.next_action_date < today;
+          // 期日未設定の場合は活動日から7日超で期限超過とみなす
+          const diffDays = (new Date(today) - new Date(l.date)) / (1000*60*60*24);
           return diffDays > 7;
         });
-        // 活動日から3〜7日のものを「今日対応すべき」として表示
         const dueToday = logs.filter(l => {
           if (!l.next_action || l.next_action === "") return false;
           if (l.status === "完了" || l.status === "見送り") return false;
-          const logDate = new Date(l.date).getTime();
-          const diffDays = (todayMs - logDate) / (1000 * 60 * 60 * 24);
+          if (l.next_action_date) return l.next_action_date === today;
+          // 期日未設定の場合は活動日から3〜7日で「今日対応すべき」
+          const diffDays = (new Date(today) - new Date(l.date)) / (1000*60*60*24);
           return diffDays >= 3 && diffDays <= 7;
         });
         if (overdue.length === 0 && dueToday.length === 0) return null;
@@ -192,7 +192,9 @@ const Dashboard = ({ companies, departments, logs }) => {
                 </div>
                 {overdue.map(l => (
                   <div key={l.id} style={{ display:"flex", gap:10, padding:"7px 10px", background:"rgba(239,68,68,0.1)", borderRadius:8, marginBottom:6 }}>
-                    <div style={{ minWidth:50, fontSize:11, color:"#ef4444", fontWeight:700 }}>{l.date?.slice(5)}</div>
+                    <div style={{ minWidth:60, fontSize:11, color:"#ef4444", fontWeight:700 }}>
+                      {l.next_action_date ? "期日: "+l.next_action_date.slice(5) : "活動: "+l.date?.slice(5)}
+                    </div>
                     <div style={{ flex:1 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
                         <span style={{ fontSize:12, fontWeight:600, color:"#f1f5f9" }}>{l.company?.replace("株式会社","").replace("合同会社","").trim()}</span>
@@ -215,7 +217,9 @@ const Dashboard = ({ companies, departments, logs }) => {
                 </div>
                 {dueToday.map(l => (
                   <div key={l.id} style={{ display:"flex", gap:10, padding:"7px 10px", background:"rgba(245,158,11,0.1)", borderRadius:8, marginBottom:6 }}>
-                    <div style={{ minWidth:50, fontSize:11, color:"#f59e0b", fontWeight:700 }}>今日</div>
+                    <div style={{ minWidth:60, fontSize:11, color:"#f59e0b", fontWeight:700 }}>
+                      {l.next_action_date ? "期日: "+l.next_action_date.slice(5) : "今日"}
+                    </div>
                     <div style={{ flex:1 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
                         <span style={{ fontSize:12, fontWeight:600, color:"#f1f5f9" }}>{l.company?.replace("株式会社","").replace("合同会社","").trim()}</span>
@@ -1073,7 +1077,7 @@ const LogModal = ({ companies, departments, keyPersons, onClose, onSave }) => {
   const [form, setForm] = useState({
     company:"", department:"", date:new Date().toISOString().slice(0,10),
     person:"", partner_name:"", activity_type:"候補者提案", phase:"P3:提案・商談",
-    status:"進行中", probability:"C（商談中）", memo:"", next_action:"",
+    status:"進行中", probability:"C（商談中）", memo:"", next_action:"", next_action_date:"",
   });
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
@@ -1313,7 +1317,22 @@ export default function App() {
   }, [fetchAll]);
 
   const saveLog = useCallback(async (form) => {
-    const { error } = await supabase.from("activity_logs").insert([form]);
+    // DBに存在する列のみ抽出して保存
+    const { partner_name, ...rest } = form;
+    const data = {
+      date:          rest.date,
+      company:       rest.company,
+      department:    rest.department,
+      person:        rest.person,
+      activity_type: rest.activity_type,
+      phase:         rest.phase,
+      status:        rest.status,
+      probability:   rest.probability,
+      memo:          rest.memo + (partner_name ? "　面談相手: " + partner_name : ""),
+      next_action:   rest.next_action,
+      next_action_date: rest.next_action_date || null,
+    };
+    const { error } = await supabase.from("activity_logs").insert([data]);
     if (error) { console.error(error); return false; }
     await fetchAll();
     return true;
