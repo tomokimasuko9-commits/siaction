@@ -162,11 +162,12 @@ const Dashboard = ({ companies, departments, logs }) => {
 
       {/* 今日のアクション・期限超過 */}
       {(() => {
-        const today = new Date().toISOString().slice(0,10);
-        const todayDate = new Date(today);
-        const oneWeekLater = new Date(todayDate);
-        oneWeekLater.setDate(oneWeekLater.getDate() + 7);
-        const oneWeekStr = oneWeekLater.toISOString().slice(0,10);
+        // 今日の日付（毎回新規生成）
+        const todayObj = new Date();
+        const today = todayObj.toISOString().slice(0,10);
+        const oneWeekObj = new Date(todayObj);
+        oneWeekObj.setDate(oneWeekObj.getDate() + 7);
+        const oneWeekStr = oneWeekObj.toISOString().slice(0,10);
 
         // 保留中でない企業名のセット
         const activeCoNames = new Set(companies.filter(c => c.is_active !== false).map(c => c.name));
@@ -180,7 +181,7 @@ const Dashboard = ({ companies, departments, logs }) => {
           return l.next_action_date < today;
         });
 
-        // 1週間以内（黄）: next_action_date が今日〜7日後
+        // 1週間以内（黄）: next_action_date が今日〜7日後（当日含む）
         const dueToday = logs.filter(l => {
           if (!l.next_action || l.next_action === "") return false;
           if (!l.next_action_date || l.next_action_date === "") return false;
@@ -266,23 +267,25 @@ const Dashboard = ({ companies, departments, logs }) => {
             </div>
 
             {ll && (
-              <div style={{ padding:"10px 12px", background:"#0f172a", borderRadius:8, marginBottom:8 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
-                  <span style={{ fontSize:12, color:"#94a3b8", whiteSpace:"nowrap" }}>{ll.date?.slice(5)}</span>
+              <div style={{ padding:"12px 14px", background:"#0f172a", borderRadius:8, marginBottom:8 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+                  <span style={{ fontSize:14, color:"#94a3b8", whiteSpace:"nowrap", fontWeight:600 }}>{ll.date?.slice(5)}</span>
                   <Tag phase={ll.phase} />
-                  <span style={{ fontSize:12, color:"#cbd5e1", fontWeight:600 }}>{ll.activity_type}</span>
-                  {ll.person && <span style={{ fontSize:12, color:"#94a3b8" }}>· {ll.person}</span>}
-                  {ll.partner_name && <span style={{ fontSize:12, color:"#94a3b8" }}>/ 先方: {ll.partner_name}</span>}
+                  <span style={{ fontSize:14, color:"#e2e8f0", fontWeight:700 }}>{ll.activity_type}</span>
+                  {ll.person && <span style={{ fontSize:13, color:"#94a3b8" }}>担当: {ll.person}</span>}
+                  {ll.partner_name && <span style={{ fontSize:13, color:"#7dd3fc" }}>先方: {ll.partner_name}</span>}
                 </div>
                 {ll.memo && (
-                  <div style={{ fontSize:13, color:"#cbd5e1", lineHeight:1.6, borderLeft:"2px solid #334155", paddingLeft:8 }}>
-                    {ll.memo.slice(0,100)}{ll.memo.length>100?"...":""}
+                  <div style={{ fontSize:14, color:"#e2e8f0", lineHeight:1.7, borderLeft:"3px solid #3b82f6", paddingLeft:10, marginBottom:6 }}>
+                    {ll.memo.slice(0,120)}{ll.memo.length>120?"...":""}
                   </div>
                 )}
                 {ll.next_action && (
-                  <div style={{ marginTop:5, fontSize:12, color:"#7dd3fc" }}>
+                  <div style={{ marginTop:6, fontSize:14, color:"#7dd3fc", fontWeight:600 }}>
                     📌 {ll.next_action}
-                    {ll.next_action_date && <span style={{ marginLeft:6, color:"#94a3b8" }}>（{ll.next_action_date.slice(5)}）</span>}
+                    {ll.next_action_date && (
+                      <span style={{ marginLeft:8, fontSize:13, color:"#94a3b8", fontWeight:400 }}>期日: {ll.next_action_date.slice(5)}</span>
+                    )}
                   </div>
                 )}
               </div>
