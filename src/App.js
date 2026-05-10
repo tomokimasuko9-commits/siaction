@@ -1114,8 +1114,10 @@ const LogModal = ({ companies, departments, keyPersons, onClose, onSave }) => {
   };
 
   return (
-    <ModalWrap onClose={onClose} title="活動を記録">
+    <ModalWrap onClose={onClose} title="活動記録">
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+
+        {/* 行1: 企業名・部署名 */}
         <FormField label="企業名">
           <select value={form.company} onChange={e=>update("company",e.target.value)} style={S.input}>
             <option value="">選択してください</option>
@@ -1128,17 +1130,28 @@ const LogModal = ({ companies, departments, keyPersons, onClose, onSave }) => {
             {depts.map(d=><option key={d.id}>{d.name}</option>)}
           </select>
         </FormField>
+
+        {/* 行2: 先方担当者名・自分の担当者名 */}
+        <FormField label="先方担当者名（営業先）">
+          <input value={form.partner_name} onChange={e=>update("partner_name",e.target.value)}
+            placeholder="例: 田中 部長" style={S.input} />
+        </FormField>
+        <FormField label="自社担当者名">
+          <input value={form.person} onChange={e=>update("person",e.target.value)}
+            placeholder="例: 益子" style={S.input} />
+        </FormField>
+
+        {/* 行3: 活動日・活動種別 */}
         <FormField label="活動日">
           <input type="date" value={form.date} onChange={e=>update("date",e.target.value)} style={S.input} />
-        </FormField>
-        <FormField label="担当者">
-          <input value={form.person} onChange={e=>update("person",e.target.value)} placeholder="例: 益子" style={S.input} />
         </FormField>
         <FormField label="活動種別">
           <select value={form.activity_type} onChange={e=>update("activity_type",e.target.value)} style={S.input}>
             {ACT_TYPES.map(t=><option key={t}>{t}</option>)}
           </select>
         </FormField>
+
+        {/* 行4: フェーズ・ステータス */}
         <FormField label="フェーズ">
           <select value={form.phase} onChange={e=>update("phase",e.target.value)} style={S.input}>
             {PHASES.map(p=><option key={p}>{p}</option>)}
@@ -1149,23 +1162,35 @@ const LogModal = ({ companies, departments, keyPersons, onClose, onSave }) => {
             {STATUSES.map(s=><option key={s}>{s}</option>)}
           </select>
         </FormField>
+
+        {/* 行5: 受注確度（1列） */}
         <FormField label="受注確度">
           <select value={form.probability} onChange={e=>update("probability",e.target.value)} style={S.input}>
             {PROBS.map(p=><option key={p}>{p}</option>)}
           </select>
         </FormField>
+        <div />
+
       </div>
+
+      {/* 活動内容 */}
       <div style={{ marginTop:12 }}>
         <FormField label="活動内容・結果サマリー">
           <textarea value={form.memo} onChange={e=>update("memo",e.target.value)}
-            placeholder="面談相手、話した内容、次のアクションにつながる情報など"
+            placeholder="話した内容、先方の反応、次のアクションにつながる情報など"
             style={{ ...S.input, resize:"vertical", minHeight:80 }} />
         </FormField>
       </div>
-      <div style={{ marginTop:10 }}>
+
+      {/* 次回アクション・期日 */}
+      <div style={{ marginTop:10, display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
         <FormField label="次回アクション">
           <input value={form.next_action} onChange={e=>update("next_action",e.target.value)}
             placeholder="例: 候補者プロフィールを送付する" style={S.input} />
+        </FormField>
+        <FormField label="次回アクション期日 🗓">
+          <input type="date" value={form.next_action_date} onChange={e=>update("next_action_date",e.target.value)}
+            style={{ ...S.input, colorScheme:"dark" }} />
         </FormField>
       </div>
       <div style={{ display:"flex", justifyContent:"flex-end", gap:10, marginTop:18 }}>
