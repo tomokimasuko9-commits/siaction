@@ -160,35 +160,27 @@ const Dashboard = ({ companies, departments, logs }) => {
         </div>
       </div>
 
-      {/* 今日のアクション・期限超過 */}
-      {(() => {
-        // 今日の日付（毎回新規生成）
-        const todayObj = new Date();
-        const today = todayObj.toISOString().slice(0,10);
-        const oneWeekObj = new Date(todayObj);
-        oneWeekObj.setDate(oneWeekObj.getDate() + 7);
-        const oneWeekStr = oneWeekObj.toISOString().slice(0,10);
-
-        // 保留中でない企業名のセット
-        const activeCoNames = new Set(companies.filter(c => c.is_active !== false).map(c => c.name));
-
-        // 期限超過（赤）: next_action_date が今日より前
-        const overdue = logs.filter(l => {
-          if (!l.next_action || l.next_action === "") return false;
-          if (!l.next_action_date || l.next_action_date === "") return false;
-          if (l.status === "完了" || l.status === "見送り") return false;
-          if (!activeCoNames.has(l.company)) return false;
-          return l.next_action_date < today;
-        });
-
-        // 1週間以内（黄）: next_action_date が今日〜7日後（当日含む）
-        const dueToday = logs.filter(l => {
-          if (!l.next_action || l.next_action === "") return false;
-          if (!l.next_action_date || l.next_action_date === "") return false;
-          if (l.status === "完了" || l.status === "見送り") return false;
-          if (!activeCoNames.has(l.company)) return false;
-          return l.next_action_date >= today && l.next_action_date <= oneWeekStr;
-        });
+      {/* 今日のアクション・期限超過 - 変数はuseEffectの外で計算 */}
+      {(()=>{
+        const _today = new Date().toISOString().slice(0,10);
+        const _d7 = new Date(); _d7.setDate(_d7.getDate()+7);
+        const _week = _d7.toISOString().slice(0,10);
+        const _active = new Set(companies.filter(c=>c.is_active!==false).map(c=>c.name));
+        const overdue = logs.filter(l=>
+          l.next_action && l.next_action_date &&
+          l.next_action_date !== "" &&
+          l.status !== "完了" && l.status !== "見送り" &&
+          _active.has(l.company) &&
+          l.next_action_date < _today
+        );
+        const dueToday = logs.filter(l=>
+          l.next_action && l.next_action_date &&
+          l.next_action_date !== "" &&
+          l.status !== "完了" && l.status !== "見送り" &&
+          _active.has(l.company) &&
+          l.next_action_date >= _today &&
+          l.next_action_date <= _week
+        );
         if (overdue.length === 0 && dueToday.length === 0) return null;
         return (
           <div style={{ marginBottom:16 }}>
@@ -267,24 +259,57 @@ const Dashboard = ({ companies, departments, logs }) => {
             </div>
 
             {ll && (
-              <div style={{ padding:"12px 14px", background:"#0f172a", borderRadius:8, marginBottom:8 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, flexWrap:"wrap" }}>
-                  <span style={{ fontSize:14, color:"#94a3b8", whiteSpace:"nowrap", fontWeight:600 }}>{ll.date?.slice(5)}</span>
-                  <Tag phase={ll.phase} />
-                  <span style={{ fontSize:14, color:"#e2e8f0", fontWeight:700 }}>{ll.activity_type}</span>
-                  {ll.person && <span style={{ fontSize:13, color:"#94a3b8" }}>担当: {ll.person}</span>}
-                  {ll.partner_name && <span style={{ fontSize:13, color:"#7dd3fc" }}>先方: {ll.partner_name}</span>}
+              <div style={{
+                padding:"14px 16px",
+                background:"#1a2744",
+                border:"1px solid #2d4a7a",
+                borderRadius:10,
+                marginBottom:10
+              }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, flexWrap:"wrap" }}>
+                  <span style={{ fontSize:15, fontWeight:700, color:"#94a3b8" }}>
+                    {ll.date?.slice(5)}
+                  </span>
+                  <span style={{
+                    fontSize:15, fontWeight:700,
+                    padding:"2px 10px", borderRadius:99,
+                    background: ll.phase?.startsWith("P5") ? "#f3e8ff" :
+                                ll.phase?.startsWith("P4") ? "#fee2e2" :
+                                ll.phase?.startsWith("P3") ? "#fef9c3" :
+                                ll.phase?.startsWith("P2") ? "#dcfce7" : "#dbeafe",
+                    color: ll.phase?.startsWith("P5") ? "#6b21a8" :
+                           ll.phase?.startsWith("P4") ? "#991b1b" :
+                           ll.phase?.startsWith("P3") ? "#854d0e" :
+                           ll.phase?.startsWith("P2") ? "#166534" : "#1e40af",
+                  }}>
+                    {ll.phase?.replace(/^P\d:/,"")||"未着手"}
+                  </span>
+                  <span style={{ fontSize:16, fontWeight:700, color:"#f1f5f9" }}>
+                    {ll.activity_type}
+                  </span>
+                  {ll.person && (
+                    <span style={{ fontSize:14, color:"#94a3b8" }}>担当: {ll.person}</span>
+                  )}
                 </div>
                 {ll.memo && (
-                  <div style={{ fontSize:14, color:"#e2e8f0", lineHeight:1.7, borderLeft:"3px solid #3b82f6", paddingLeft:10, marginBottom:6 }}>
-                    {ll.memo.slice(0,120)}{ll.memo.length>120?"...":""}
+                  <div style={{
+                    fontSize:15, color:"#e2e8f0", lineHeight:1.8,
+                    borderLeft:"3px solid #3b82f6",
+                    paddingLeft:12, marginBottom:8
+                  }}>
+                    {ll.memo.slice(0,150)}{ll.memo.length>150?"...":""}
                   </div>
                 )}
                 {ll.next_action && (
-                  <div style={{ marginTop:6, fontSize:14, color:"#7dd3fc", fontWeight:600 }}>
+                  <div style={{ fontSize:15, color:"#7dd3fc", fontWeight:600 }}>
                     📌 {ll.next_action}
                     {ll.next_action_date && (
-                      <span style={{ marginLeft:8, fontSize:13, color:"#94a3b8", fontWeight:400 }}>期日: {ll.next_action_date.slice(5)}</span>
+                      <span style={{
+                        marginLeft:10, fontSize:14,
+                        color:"#94a3b8", fontWeight:400
+                      }}>
+                        期日: {ll.next_action_date.slice(5)}
+                      </span>
                     )}
                   </div>
                 )}
