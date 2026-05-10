@@ -50,17 +50,17 @@ const HEARING_ITEMS = [
 
 // ── スタイル ────────────────────────────────────────────────
 const S = {
-  app:   { fontFamily:"'DM Sans',sans-serif", background:"#0f172a", minHeight:"100vh", color:"#f1f5f9", display:"flex" },
-  side:  { width:210, background:"#1e293b", borderRight:"1px solid #334155", display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, bottom:0, zIndex:10 },
+  app:   { fontFamily:"'DM Sans',sans-serif", background:theme.bgApp, minHeight:"100vh", color:theme.textPrimary, display:"flex" },
+  side:  { width:210, background:theme.bgSidebar, borderRight:"1px solid "+theme.border, display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, bottom:0, zIndex:10 },
   main:  { marginLeft:210, flex:1, display:"flex", flexDirection:"column", minHeight:"100vh" },
-  topbar:{ padding:"14px 24px", borderBottom:"1px solid #334155", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#1e293b", position:"sticky", top:0, zIndex:5 },
-  card:  { background:"#1e293b", border:"1px solid #334155", borderRadius:12, padding:"14px 18px", marginBottom:10 },
-  input: { width:"100%", background:"#0f172a", border:"1px solid #334155", borderRadius:8, padding:"8px 12px", fontSize:13, color:"#f1f5f9", outline:"none" },
-  label: { fontSize:11, color:"#64748b", marginBottom:4, display:"block", textTransform:"uppercase", letterSpacing:"0.6px" },
-  btn:   { padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:600 },
-  tag:   { fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:600, display:"inline-block" },
+  topbar:{ padding:"14px 24px", borderBottom:"1px solid "+theme.border, display:"flex", alignItems:"center", justifyContent:"space-between", background:theme.bgTopbar, position:"sticky", top:0, zIndex:5 },
+  card:  { background:theme.bgCard, border:"1px solid "+theme.border, borderRadius:12, padding:"14px 18px", marginBottom:10 },
+  input: { width:"100%", background:theme.bgInput, border:"1px solid "+theme.border, borderRadius:8, padding:"8px 12px", fontSize:theme.fontBase, color:theme.textPrimary, outline:"none" },
+  label: { fontSize:theme.fontXs, color:theme.textLabel, marginBottom:4, display:"block", textTransform:"uppercase", letterSpacing:"0.6px" },
+  btn:   { padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:theme.fontBase, fontWeight:600 },
+  tag:   { fontSize:theme.fontSm, padding:"2px 8px", borderRadius:99, fontWeight:600, display:"inline-block" },
   modal: { position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center" },
-  mbox:  { background:"#1e293b", border:"1px solid #334155", borderRadius:16, padding:24, width:560, maxHeight:"88vh", overflowY:"auto" },
+  mbox:  { background:theme.bgCard, border:"1px solid "+theme.border, borderRadius:16, padding:24, width:560, maxHeight:"88vh", overflowY:"auto" },
 };
 
 // ── 共通コンポーネント ───────────────────────────────────────
@@ -163,22 +163,30 @@ const Dashboard = ({ companies, departments, logs }) => {
       {/* 今日のアクション・期限超過 */}
       {(() => {
         const today = new Date().toISOString().slice(0,10);
+        const todayDate = new Date(today);
+        const oneWeekLater = new Date(todayDate);
+        oneWeekLater.setDate(oneWeekLater.getDate() + 7);
+        const oneWeekStr = oneWeekLater.toISOString().slice(0,10);
+
         // 保留中でない企業名のセット
         const activeCoNames = new Set(companies.filter(c => c.is_active !== false).map(c => c.name));
-        // next_action_date が明示的に設定されている場合のみアラート表示
+
+        // 期限超過（赤）: next_action_date が今日より前
         const overdue = logs.filter(l => {
           if (!l.next_action || l.next_action === "") return false;
-          if (!l.next_action_date || l.next_action_date === "") return false; // 期日未設定は除外
+          if (!l.next_action_date || l.next_action_date === "") return false;
           if (l.status === "完了" || l.status === "見送り") return false;
-          if (!activeCoNames.has(l.company)) return false; // 保留中企業は除外
+          if (!activeCoNames.has(l.company)) return false;
           return l.next_action_date < today;
         });
+
+        // 1週間以内（黄）: next_action_date が今日〜7日後
         const dueToday = logs.filter(l => {
           if (!l.next_action || l.next_action === "") return false;
-          if (!l.next_action_date || l.next_action_date === "") return false; // 期日未設定は除外
+          if (!l.next_action_date || l.next_action_date === "") return false;
           if (l.status === "完了" || l.status === "見送り") return false;
-          if (!activeCoNames.has(l.company)) return false; // 保留中企業は除外
-          return l.next_action_date === today;
+          if (!activeCoNames.has(l.company)) return false;
+          return l.next_action_date >= today && l.next_action_date <= oneWeekStr;
         });
         if (overdue.length === 0 && dueToday.length === 0) return null;
         return (
@@ -213,12 +221,12 @@ const Dashboard = ({ companies, departments, logs }) => {
               <div style={{ background:"#431407", border:"1px solid #f59e0b", borderRadius:12, padding:"12px 16px", marginBottom:10 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
                   <span style={{ fontSize:16 }}>⏰</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:"#f59e0b" }}>今日期限 {dueToday.length}件 — 本日中に対応してください</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:"#f59e0b" }}>期日まで1週間以内 {dueToday.length}件 — 早めに対応してください</span>
                 </div>
                 {dueToday.map(l => (
                   <div key={l.id} style={{ display:"flex", gap:10, padding:"7px 10px", background:"rgba(245,158,11,0.1)", borderRadius:8, marginBottom:6 }}>
                     <div style={{ minWidth:60, fontSize:11, color:"#f59e0b", fontWeight:700 }}>
-                      {l.next_action_date ? "期日: "+l.next_action_date.slice(5) : "今日"}
+                      {l.next_action_date ? "期日: "+l.next_action_date.slice(5) : ""}
                     </div>
                     <div style={{ flex:1 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
@@ -258,16 +266,25 @@ const Dashboard = ({ companies, departments, logs }) => {
             </div>
 
             {ll && (
-              <div style={{ padding:"7px 10px", background:"#0f172a", borderRadius:8, marginBottom:8, display:"flex", gap:10 }}>
-                <div style={{ fontSize:10, color:"#475569", whiteSpace:"nowrap", paddingTop:2 }}>{ll.date?.slice(5)}</div>
-                <div style={{ flex:1 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
-                    <Tag phase={ll.phase} />
-                    <span style={{ fontSize:11, color:"#94a3b8" }}>{ll.activity_type}</span>
-                    {ll.person && <span style={{ fontSize:10, color:"#475569" }}>· {ll.person}</span>}
-                  </div>
-                  {ll.memo && <div style={{ fontSize:11, color:"#475569" }}>{ll.memo.slice(0,70)}{ll.memo.length>70?"...":""}</div>}
+              <div style={{ padding:"10px 12px", background:"#0f172a", borderRadius:8, marginBottom:8 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+                  <span style={{ fontSize:12, color:"#94a3b8", whiteSpace:"nowrap" }}>{ll.date?.slice(5)}</span>
+                  <Tag phase={ll.phase} />
+                  <span style={{ fontSize:12, color:"#cbd5e1", fontWeight:600 }}>{ll.activity_type}</span>
+                  {ll.person && <span style={{ fontSize:12, color:"#94a3b8" }}>· {ll.person}</span>}
+                  {ll.partner_name && <span style={{ fontSize:12, color:"#94a3b8" }}>/ 先方: {ll.partner_name}</span>}
                 </div>
+                {ll.memo && (
+                  <div style={{ fontSize:13, color:"#cbd5e1", lineHeight:1.6, borderLeft:"2px solid #334155", paddingLeft:8 }}>
+                    {ll.memo.slice(0,100)}{ll.memo.length>100?"...":""}
+                  </div>
+                )}
+                {ll.next_action && (
+                  <div style={{ marginTop:5, fontSize:12, color:"#7dd3fc" }}>
+                    📌 {ll.next_action}
+                    {ll.next_action_date && <span style={{ marginLeft:6, color:"#94a3b8" }}>（{ll.next_action_date.slice(5)}）</span>}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1410,8 +1427,8 @@ export default function App() {
       {/* サイドバー */}
       <div style={S.side}>
         <div style={{ padding:"16px 18px", borderBottom:"1px solid #334155" }}>
-          <div style={{ fontSize:16, fontWeight:700, letterSpacing:"-0.5px" }}>SIerSales</div>
-          <div style={{ fontSize:10, color:"#64748b", marginTop:2 }}>開拓営業管理システム</div>
+          <div style={{ fontSize:theme.fontLg, fontWeight:700, letterSpacing:"-0.5px", color:theme.textPrimary }}>SIerSales</div>
+          <div style={{ fontSize:theme.fontXs, color:theme.textMuted, marginTop:2 }}>開拓営業管理システム</div>
         </div>
         <div style={{ padding:"8px 0", flex:1, overflowY:"auto" }}>
           {[
@@ -1425,7 +1442,7 @@ export default function App() {
                 const t = TABS.find(t=>t.id===id);
                 return (
                   <div key={id} onClick={() => setTab(id)}
-                    style={{ padding:"9px 14px", borderRadius:8, margin:"1px 8px", cursor:"pointer", display:"flex", alignItems:"center", gap:9, fontSize:12, color:tab===id?"#fff":"#94a3b8", background:tab===id?"linear-gradient(135deg,#1d4ed8,#7c3aed)":"transparent", transition:"all .15s" }}>
+                    style={{ padding:"9px 14px", borderRadius:8, margin:"1px 8px", cursor:"pointer", display:"flex", alignItems:"center", gap:9, fontSize:theme.fontSm, color:tab===id?"#fff":theme.textSecondary, background:tab===id?`linear-gradient(135deg,${theme.accentBlue},${theme.accentPurple})`:"transparent", transition:"all .15s" }}>
                     <span style={{ fontSize:14, width:18, textAlign:"center" }}>{t?.icon}</span>
                     <span>{t?.label}</span>
                   </div>
@@ -1435,8 +1452,8 @@ export default function App() {
           ))}
         </div>
         <div style={{ padding:"12px 16px", borderTop:"1px solid "+theme.border }}>
-          <div style={{ fontSize:9, color:theme.textMuted, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:5 }}>KGI達成まで</div>
-          <div style={{ fontSize:18, fontWeight:700, color:theme.accentPurple }}>{60-kgiCurrent}件</div>
+          <div style={{ fontSize:theme.fontXs, color:theme.textMuted, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:5 }}>KGI達成まで</div>
+          <div style={{ fontSize:theme.fontXl, fontWeight:700, color:theme.accentPurple }}>{60-kgiCurrent}件</div>
           <div style={{ height:3, background:theme.border, borderRadius:99, overflow:"hidden", marginTop:6 }}>
             <div style={{ width:`${kgiPct}%`, height:"100%", background:`linear-gradient(90deg,${theme.accentBlue},${theme.accentPurple})`, borderRadius:99 }} />
           </div>
