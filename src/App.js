@@ -49,19 +49,6 @@ const HEARING_ITEMS = [
 ];
 
 // ── スタイル ────────────────────────────────────────────────
-const S = {
-  app:   { fontFamily:"'DM Sans',sans-serif", background:theme.bgApp, minHeight:"100vh", color:theme.textPrimary, display:"flex" },
-  side:  { width:210, background:theme.bgSidebar, borderRight:"1px solid "+theme.border, display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, bottom:0, zIndex:10 },
-  main:  { marginLeft:210, flex:1, display:"flex", flexDirection:"column", minHeight:"100vh" },
-  topbar:{ padding:"14px 24px", borderBottom:"1px solid "+theme.border, display:"flex", alignItems:"center", justifyContent:"space-between", background:theme.bgTopbar, position:"sticky", top:0, zIndex:5 },
-  card:  { background:theme.bgCard, border:"1px solid "+theme.border, borderRadius:12, padding:"14px 18px", marginBottom:10 },
-  input: { width:"100%", background:theme.bgInput, border:"1px solid "+theme.border, borderRadius:8, padding:"8px 12px", fontSize:theme.fontBase, color:theme.textPrimary, outline:"none" },
-  label: { fontSize:theme.fontXs, color:theme.textLabel, marginBottom:4, display:"block", textTransform:"uppercase", letterSpacing:"0.6px" },
-  btn:   { padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:theme.fontBase, fontWeight:600 },
-  tag:   { fontSize:theme.fontSm, padding:"2px 8px", borderRadius:99, fontWeight:600, display:"inline-block" },
-  modal: { position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center" },
-  mbox:  { background:theme.bgCard, border:"1px solid "+theme.border, borderRadius:16, padding:24, width:560, maxHeight:"88vh", overflowY:"auto" },
-};
 
 // ── 共通コンポーネント ───────────────────────────────────────
 const Tag = ({ phase }) => (
@@ -1351,6 +1338,21 @@ export default function App() {
       return saved ? { ...DEFAULT_THEME, ...JSON.parse(saved) } : DEFAULT_THEME;
     } catch { return DEFAULT_THEME; }
   });
+
+  // S はtheme に依存するのでApp関数内で定義
+  const S = {
+    app:   { fontFamily:"'DM Sans',sans-serif", background:theme.bgApp, minHeight:"100vh", color:theme.textPrimary, display:"flex" },
+    side:  { width:210, background:theme.bgSidebar, borderRight:"1px solid "+theme.border, display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, bottom:0, zIndex:10 },
+    main:  { marginLeft:210, flex:1, display:"flex", flexDirection:"column", minHeight:"100vh" },
+    topbar:{ padding:"14px 24px", borderBottom:"1px solid "+theme.border, display:"flex", alignItems:"center", justifyContent:"space-between", background:theme.bgTopbar, position:"sticky", top:0, zIndex:5 },
+    card:  { background:theme.bgCard, border:"1px solid "+theme.border, borderRadius:12, padding:"14px 18px", marginBottom:10 },
+    input: { width:"100%", background:theme.bgInput, border:"1px solid "+theme.border, borderRadius:8, padding:"8px 12px", fontSize:theme.fontBase, color:theme.textPrimary, outline:"none" },
+    label: { fontSize:theme.fontXs, color:theme.textLabel, marginBottom:4, display:"block", textTransform:"uppercase", letterSpacing:"0.6px" },
+    btn:   { padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:theme.fontBase, fontWeight:600 },
+    tag:   { fontSize:theme.fontSm, padding:"2px 8px", borderRadius:99, fontWeight:600, display:"inline-block" },
+    modal: { position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center" },
+    mbox:  { background:theme.bgCard, border:"1px solid "+theme.border, borderRadius:16, padding:24, width:560, maxHeight:"88vh", overflowY:"auto" },
+  };
 
   const handleThemeChange = (key, val) => {
     if (key === "_reset") {
