@@ -110,7 +110,7 @@ const ModalWrap = ({ onClose, title, children, width=560 }) => (
 );
 
 // ── ダッシュボード ───────────────────────────────────────────
-const Dashboard = ({ companies, departments, logs }) => {
+const Dashboard = ({ companies, departments, logs, onRefresh }) => {
   const kgiTarget  = 60;
   const kgiCurrent = departments.reduce((s, d) => s + (d.active_count || 0), 0);
   const kgiPct     = pct(kgiCurrent, kgiTarget);
@@ -219,18 +219,39 @@ const Dashboard = ({ companies, departments, logs }) => {
                   <span style={{ fontSize:13, fontWeight:700, color:"#f59e0b" }}>期日まで1週間以内 {dueToday.length}件 — 早めに対応してください</span>
                 </div>
                 {dueToday.map(l => (
-                  <div key={l.id} style={{ display:"flex", gap:10, padding:"7px 10px", background:"rgba(245,158,11,0.1)", borderRadius:8, marginBottom:6 }}>
-                    <div style={{ minWidth:60, fontSize:11, color:"#f59e0b", fontWeight:700 }}>
+                  <div key={l.id} style={{ display:"flex", gap:10, padding:"9px 12px", background:"rgba(245,158,11,0.1)", borderRadius:8, marginBottom:6, alignItems:"flex-start" }}>
+                    <div style={{ minWidth:64, fontSize:11, color:"#f59e0b", fontWeight:700, paddingTop:2 }}>
                       {l.next_action_date ? "期日: "+l.next_action_date.slice(5) : ""}
                     </div>
                     <div style={{ flex:1 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
-                        <span style={{ fontSize:12, fontWeight:600, color:"#f1f5f9" }}>{l.company?.replace("株式会社","").replace("合同会社","").trim()}</span>
-                        {l.department && <span style={{ fontSize:10, color:"#94a3b8" }}>{l.department}</span>}
+                      <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
+                        <span style={{ fontSize:13, fontWeight:600, color:"#f1f5f9" }}>{l.company?.replace("株式会社","").replace("合同会社","").trim()}</span>
+                        {l.department && <span style={{ fontSize:11, color:"#94a3b8" }}>{l.department}</span>}
+                        <Tag phase={l.phase} />
                       </div>
-                      <div style={{ fontSize:12, color:"#fcd34d" }}>📌 {l.next_action}</div>
+                      <div style={{ fontSize:13, color:"#fcd34d" }}>📌 {l.next_action}</div>
                     </div>
-                    <Tag phase={l.phase} />
+                    <button onClick={async()=>{
+                      // 元のログのステータスを「完了」に更新
+                      await supabase.from("activity_logs").update({ status:"完了" }).eq("id", l.id);
+                      // 完了ログを新規追加
+                      await supabase.from("activity_logs").insert([{
+                        date:          new Date().toISOString().slice(0,10),
+                        company:       l.company,
+                        department:    l.department,
+                        person:        l.person,
+                        activity_type: "フォローアップ",
+                        phase:         l.phase,
+                        status:        "完了",
+                        probability:   l.probability,
+                        memo:          "✅ アクション完了：" + l.next_action,
+                        next_action:   "",
+                        next_action_date: null,
+                      }]);
+                      onRefresh();
+                    }} style={{ ...S.btn, padding:"5px 12px", background:"#10b981", color:"#fff", fontSize:12, fontWeight:700, whiteSpace:"nowrap", flexShrink:0 }}>
+                      ✓ 完了
+                    </button>
                   </div>
                 ))}
               </div>
@@ -1833,7 +1854,7 @@ export default function App() {
   const kgiPct     = pct(kgiCurrent, 60);
 
   const views = {
-    dashboard: <Dashboard companies={companies} departments={departments} logs={logs} />,
+    dashboard: <Dashboard companies={companies} departments={departments} logs={logs} onRefresh={fetchAll} />,
     kpi:       <KpiView   companies={companies} departments={departments} logs={logs} onRefresh={fetchAll} />,
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
