@@ -796,7 +796,7 @@ const HearingView = ({ companies, departments, keyPersons, hearingData, onSaveHe
 };
 
 // ── 企業管理 ────────────────────────────────────────────────
-const CompanyManager = ({ companies, departments, keyPersons, onRefresh }) => {
+const CompanyManager = ({ companies, departments, keyPersons, archivedCos, archivedDepts, onRefresh }) => {
   const [editCo,  setEditCo]  = useState(null);
   const [editDept,setEditDept]= useState(null);
   const [newCoForm, setNewCoForm] = useState({ name:"", priority:"重要", category:"", unit_range:"", note:"" });
@@ -815,8 +815,8 @@ const CompanyManager = ({ companies, departments, keyPersons, onRefresh }) => {
   };
 
   const deleteCo = async (id) => {
-    if (!window.confirm("この企業と関連データを全て削除しますか？")) return;
-    await supabase.from("companies").delete().eq("id", id);
+    if (!window.confirm("この企業をアーカイブしますか？\n（アーカイブから復元・完全削除できます）")) return;
+    await supabase.from("companies").update({ is_archived: true }).eq("id", id);
     onRefresh();
   };
 
@@ -832,7 +832,8 @@ const CompanyManager = ({ companies, departments, keyPersons, onRefresh }) => {
   };
 
   const deleteDept = async (id) => {
-    await supabase.from("departments").delete().eq("id", id);
+    if (!window.confirm("この部署をアーカイブしますか？")) return;
+    await supabase.from("departments").update({ is_archived: true }).eq("id", id);
     onRefresh();
   };
 
@@ -1041,12 +1042,60 @@ const CompanyManager = ({ companies, departments, keyPersons, onRefresh }) => {
           </div>
         );
       })}
+
+      {/* アーカイブセクション */}
+      {(archivedCos.length > 0 || archivedDepts.length > 0) && (
+        <div style={{ marginTop:24 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12, padding:"10px 14px", background:"#1a1a2e", border:"1px solid #334155", borderRadius:10 }}>
+            <span style={{ fontSize:16 }}>🗑</span>
+            <span style={{ fontSize:14, fontWeight:600, color:"#64748b" }}>アーカイブ</span>
+            <span style={{ fontSize:11, color:"#475569", marginLeft:4 }}>— 誤削除した場合はここから復元できます</span>
+          </div>
+
+          {/* アーカイブ済み企業 */}
+          {archivedCos.map(co => (
+            <div key={co.id} style={{ ...S.card, opacity:0.7, borderColor:"#1e3a5f", marginBottom:6 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <span style={{ fontSize:10, padding:"2px 7px", borderRadius:99, background:"#334155", color:"#475569" }}>アーカイブ</span>
+                <span style={{ flex:1, fontSize:13, color:"#64748b" }}>{co.name}</span>
+                <button onClick={async()=>{ await supabase.from("companies").update({is_archived:false}).eq("id",co.id); onRefresh(); }}
+                  style={{ ...S.btn, padding:"4px 10px", background:"#1a3a1a", color:"#86efac", fontSize:11 }}>♻ 復元</button>
+                <button onClick={async()=>{
+                  if(!window.confirm("完全に削除します。この操作は取り消せません。")) return;
+                  await supabase.from("companies").delete().eq("id",co.id);
+                  onRefresh();
+                }} style={{ ...S.btn, padding:"4px 10px", background:"#7f1d1d", color:"#fca5a5", fontSize:11 }}>🗑 完全削除</button>
+              </div>
+            </div>
+          ))}
+
+          {/* アーカイブ済み部署 */}
+          {archivedDepts.map(d => {
+            const co = companies.find(c=>c.id===d.company_id);
+            return (
+              <div key={d.id} style={{ ...S.card, opacity:0.7, borderColor:"#1e3a5f", marginBottom:6, paddingLeft:28 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ fontSize:10, padding:"2px 7px", borderRadius:99, background:"#334155", color:"#475569" }}>部署アーカイブ</span>
+                  <span style={{ flex:1, fontSize:12, color:"#64748b" }}>{co?.name} / {d.name}</span>
+                  <button onClick={async()=>{ await supabase.from("departments").update({is_archived:false}).eq("id",d.id); onRefresh(); }}
+                    style={{ ...S.btn, padding:"3px 8px", background:"#1a3a1a", color:"#86efac", fontSize:11 }}>♻ 復元</button>
+                  <button onClick={async()=>{
+                    if(!window.confirm("完全に削除します。この操作は取り消せません。")) return;
+                    await supabase.from("departments").delete().eq("id",d.id);
+                    onRefresh();
+                  }} style={{ ...S.btn, padding:"3px 8px", background:"#7f1d1d", color:"#fca5a5", fontSize:11 }}>🗑 完全削除</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
 
 // ── 稼働者管理 ──────────────────────────────────────────────
-const EngineerView = ({ companies, departments, engineers, onRefresh }) => {
+const EngineerView = ({ companies, departments, engineers, archivedEngs, onRefresh }) => {
   const [filterCo,   setFilterCo]   = useState("all");
   const [filterSt,   setFilterSt]   = useState("稼働中");
   const [showForm,   setShowForm]   = useState(false);
@@ -1127,8 +1176,8 @@ const EngineerView = ({ companies, departments, engineers, onRefresh }) => {
   };
 
   const deleteEng = async (eng) => {
-    if (!window.confirm(`${eng.name}を削除しますか？`)) return;
-    await supabase.from("engineers").delete().eq("id", eng.id);
+    if (!window.confirm(`${eng.name}をアーカイブしますか？\n（アーカイブから復元・完全削除できます）`)) return;
+    await supabase.from("engineers").update({ is_archived: true }).eq("id", eng.id);
     // 稼働中だった場合、部署の稼働数-1
     if (eng.status === "稼働中" && eng.department_id) {
       const dept = departments.find(d => d.id === eng.department_id);
@@ -1249,6 +1298,41 @@ const EngineerView = ({ companies, departments, engineers, onRefresh }) => {
           </tbody>
         </table>
       </div>
+
+      {/* アーカイブセクション */}
+      {archivedEngs.length > 0 && (
+        <div style={{ marginTop:24 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12, padding:"10px 14px", background:"#1a1a2e", border:"1px solid #334155", borderRadius:10 }}>
+            <span style={{ fontSize:16 }}>🗑</span>
+            <span style={{ fontSize:14, fontWeight:600, color:"#64748b" }}>アーカイブ（{archivedEngs.length}名）</span>
+            <span style={{ fontSize:11, color:"#475569", marginLeft:4 }}>— 誤削除した場合はここから復元できます</span>
+          </div>
+          {archivedEngs.map(e => {
+            const co   = companies.find(c=>c.id===e.company_id);
+            const dept = departments.find(d=>d.id===e.department_id);
+            return (
+              <div key={e.id} style={{ ...S.card, opacity:0.7, borderColor:"#1e3a5f", marginBottom:6 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ fontSize:10, padding:"2px 7px", borderRadius:99, background:"#334155", color:"#475569" }}>アーカイブ</span>
+                  <span style={{ fontSize:13, fontWeight:600, color:"#64748b" }}>{e.name}</span>
+                  {co && <span style={{ fontSize:11, color:"#475569" }}>{co.name.replace("株式会社","").trim()}</span>}
+                  {dept && <span style={{ fontSize:11, color:"#475569" }}>{dept.name}</span>}
+                  <span style={{ marginLeft:"auto", fontSize:11, color:"#475569" }}>{e.start_date||"─"} 〜 {e.end_date||"現在"}</span>
+                  <button onClick={async()=>{
+                    await supabase.from("engineers").update({is_archived:false}).eq("id",e.id);
+                    onRefresh();
+                  }} style={{ ...S.btn, padding:"3px 8px", background:"#1a3a1a", color:"#86efac", fontSize:11 }}>♻ 復元</button>
+                  <button onClick={async()=>{
+                    if(!window.confirm("完全に削除します。この操作は取り消せません。")) return;
+                    await supabase.from("engineers").delete().eq("id",e.id);
+                    onRefresh();
+                  }} style={{ ...S.btn, padding:"3px 8px", background:"#7f1d1d", color:"#fca5a5", fontSize:11 }}>🗑 完全削除</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* 追加・編集モーダル */}
       {showForm && (
@@ -1615,6 +1699,9 @@ export default function App() {
   const [strategies,   setStrategies]   = useState([]);
   const [keyPersons,   setKeyPersons]   = useState([]);
   const [engineers,    setEngineers]    = useState([]);
+  const [archivedCos,  setArchivedCos]  = useState([]);
+  const [archivedDepts,setArchivedDepts]= useState([]);
+  const [archivedEngs, setArchivedEngs] = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [showModal,    setShowModal]    = useState(false);
   const [showTheme,    setShowTheme]    = useState(false);
@@ -1638,24 +1725,30 @@ export default function App() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [cos, depts, ls, hd, sp, st, kp, eng] = await Promise.all([
-      supabase.from("companies").select("*").order("sort_order"),
-      supabase.from("departments").select("*").order("sort_order"),
+    const [cos, depts, ls, hd, sp, st, kp, eng, aCos, aDepts, aEngs] = await Promise.all([
+      supabase.from("companies").select("*").order("sort_order").eq("is_archived", false),
+      supabase.from("departments").select("*").order("sort_order").eq("is_archived", false),
       supabase.from("activity_logs").select("*").order("date", { ascending:false }),
       supabase.from("hearing_answers").select("*"),
       supabase.from("sales_process").select("*"),
       supabase.from("company_strategy").select("*"),
       supabase.from("key_persons").select("*").order("created_at"),
-      supabase.from("engineers").select("*").order("start_date", { ascending:false }),
+      supabase.from("engineers").select("*").order("start_date", { ascending:false }).eq("is_archived", false),
+      supabase.from("companies").select("*").eq("is_archived", true).order("sort_order"),
+      supabase.from("departments").select("*").eq("is_archived", true),
+      supabase.from("engineers").select("*").eq("is_archived", true).order("start_date", { ascending:false }),
     ]);
-    setCompanies(cos.data   || []);
+    setCompanies(cos.data     || []);
     setDepartments(depts.data || []);
-    setLogs(ls.data         || []);
-    setHearingData(hd.data  || []);
-    setSalesProcess(sp.data || []);
-    setStrategies(st.data   || []);
-    setKeyPersons(kp.data   || []);
-    setEngineers(eng.data   || []);
+    setLogs(ls.data           || []);
+    setHearingData(hd.data    || []);
+    setSalesProcess(sp.data   || []);
+    setStrategies(st.data     || []);
+    setKeyPersons(kp.data     || []);
+    setEngineers(eng.data     || []);
+    setArchivedCos(aCos.data  || []);
+    setArchivedDepts(aDepts.data || []);
+    setArchivedEngs(aEngs.data   || []);
     setLoading(false);
   }, []);
 
@@ -1745,8 +1838,8 @@ export default function App() {
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
     hearing:   <HearingView companies={companies} departments={departments} keyPersons={keyPersons} hearingData={hearingData} onSaveHearing={saveHearing} onSaveLog={saveLog} />,
-    engineers: <EngineerView companies={companies} departments={departments} engineers={engineers} onRefresh={fetchAll} />,
-    companies: <CompanyManager companies={companies} departments={departments} keyPersons={keyPersons} onRefresh={fetchAll} />,
+    engineers: <EngineerView companies={companies} departments={departments} engineers={engineers} archivedEngs={archivedEngs} onRefresh={fetchAll} />,
+    companies: <CompanyManager companies={companies} departments={departments} keyPersons={keyPersons} archivedCos={archivedCos} archivedDepts={archivedDepts} onRefresh={fetchAll} />,
     strategy:  <StrategyView companies={companies} strategies={strategies} onRefresh={fetchAll} />,
   };
 
