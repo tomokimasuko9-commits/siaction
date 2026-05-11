@@ -1045,6 +1045,276 @@ const CompanyManager = ({ companies, departments, keyPersons, onRefresh }) => {
   );
 };
 
+// ── 稼働者管理 ──────────────────────────────────────────────
+const EngineerView = ({ companies, departments, engineers, onRefresh }) => {
+  const [filterCo,   setFilterCo]   = useState("all");
+  const [filterSt,   setFilterSt]   = useState("稼働中");
+  const [showForm,   setShowForm]   = useState(false);
+  const [editEng,    setEditEng]    = useState(null);
+  const [form, setForm] = useState({
+    company_id:"", department_id:"", name:"", start_date:"",
+    end_date:"", status:"稼働中", unit_price:"", contract_renewal_date:"", notes:""
+  });
+
+  const STATUSES_ENG = ["稼働中","契約更新中","契約終了","一時停止"];
+
+  const filteredDepts = form.company_id
+    ? departments.filter(d => d.company_id === form.company_id)
+    : [];
+
+  const filteredEngs = engineers.filter(e => {
+    if (filterCo !== "all") {
+      const co = companies.find(c => c.name === filterCo);
+      if (!co || e.company_id !== co.id) return false;
+    }
+    if (filterSt !== "all" && e.status !== filterSt) return false;
+    return true;
+  });
+
+  const activeCount  = engineers.filter(e => e.status === "稼働中").length;
+  const renewalCount = engineers.filter(e => {
+    if (e.status !== "稼働中" || !e.contract_renewal_date) return false;
+    const today = new Date().toISOString().slice(0,10);
+    const d30 = new Date(); d30.setDate(d30.getDate()+30);
+    return e.contract_renewal_date <= d30.toISOString().slice(0,10);
+  }).length;
+
+  const openForm = (eng=null) => {
+    if (eng) {
+      setForm({ ...eng, unit_price: eng.unit_price||"" });
+      setEditEng(eng);
+    } else {
+      setForm({ company_id:"", department_id:"", name:"", start_date:"",
+        end_date:"", status:"稼働中", unit_price:"", contract_renewal_date:"", notes:"" });
+      setEditEng(null);
+    }
+    setShowForm(true);
+  };
+
+  const saveEng = async () => {
+    const data = {
+      company_id:            form.company_id || null,
+      department_id:         form.department_id || null,
+      name:                  form.name,
+      start_date:            form.start_date || null,
+      end_date:              form.end_date || null,
+      status:                form.status,
+      unit_price:            parseInt(form.unit_price) || 0,
+      contract_renewal_date: form.contract_renewal_date || null,
+      notes:                 form.notes,
+    };
+    if (editEng) {
+      await supabase.from("engineers").update(data).eq("id", editEng.id);
+      // 契約終了の場合、部署の稼働数を-1
+      if (data.status === "契約終了" && editEng.status === "稼働中" && data.department_id) {
+        const dept = departments.find(d => d.id === data.department_id);
+        if (dept && dept.active_count > 0) {
+          await supabase.from("departments").update({ active_count: dept.active_count - 1 }).eq("id", dept.id);
+        }
+      }
+    } else {
+      await supabase.from("engineers").insert([data]);
+      // 新規追加時に稼働中なら部署の稼働数+1
+      if (data.status === "稼働中" && data.department_id) {
+        const dept = departments.find(d => d.id === data.department_id);
+        if (dept) {
+          await supabase.from("departments").update({ active_count: (dept.active_count||0)+1 }).eq("id", dept.id);
+        }
+      }
+    }
+    setShowForm(false);
+    onRefresh();
+  };
+
+  const deleteEng = async (eng) => {
+    if (!window.confirm(`${eng.name}を削除しますか？`)) return;
+    await supabase.from("engineers").delete().eq("id", eng.id);
+    // 稼働中だった場合、部署の稼働数-1
+    if (eng.status === "稼働中" && eng.department_id) {
+      const dept = departments.find(d => d.id === eng.department_id);
+      if (dept && dept.active_count > 0) {
+        await supabase.from("departments").update({ active_count: dept.active_count - 1 }).eq("id", dept.id);
+      }
+    }
+    onRefresh();
+  };
+
+  const statusColor = (s) =>
+    s==="稼働中"?"#10b981": s==="契約更新中"?"#f59e0b": s==="契約終了"?"#475569":"#ef4444";
+
+  const today = new Date().toISOString().slice(0,10);
+  const d30 = new Date(); d30.setDate(d30.getDate()+30);
+  const d30str = d30.toISOString().slice(0,10);
+
+  return (
+    <div>
+      {/* サマリーカード */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:16 }}>
+        {[
+          { label:"稼働中",     val:activeCount,  color:"#10b981" },
+          { label:"30日以内更新", val:renewalCount, color:"#f59e0b" },
+          { label:"総登録数",   val:engineers.length, color:"#818cf8" },
+        ].map(m => (
+          <div key={m.label} style={{ ...S.card, borderTop:`3px solid ${m.color}`, marginBottom:0 }}>
+            <div style={{ fontSize:11, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:5 }}>{m.label}</div>
+            <div style={{ fontSize:26, fontWeight:700, color:m.color }}>{m.val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* 契約更新アラート */}
+      {renewalCount > 0 && (
+        <div style={{ background:"#431407", border:"1px solid #f59e0b", borderRadius:12, padding:"12px 16px", marginBottom:14 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"#f59e0b", marginBottom:8 }}>⚠️ 30日以内に契約更新が必要なエンジニア</div>
+          {engineers.filter(e => e.status==="稼働中" && e.contract_renewal_date && e.contract_renewal_date <= d30str).map(e => {
+            const co = companies.find(c => c.id === e.company_id);
+            const dept = departments.find(d => d.id === e.department_id);
+            return (
+              <div key={e.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"6px 0", borderBottom:"1px solid rgba(245,158,11,0.2)" }}>
+                <span style={{ fontSize:13, fontWeight:700, color:"#f1f5f9" }}>{e.name}</span>
+                <span style={{ fontSize:11, color:"#94a3b8" }}>{co?.name?.replace("株式会社","").trim()}</span>
+                {dept && <span style={{ fontSize:11, color:"#94a3b8" }}>{dept.name}</span>}
+                <span style={{ marginLeft:"auto", fontSize:12, color:"#fcd34d", fontWeight:700 }}>更新日: {e.contract_renewal_date}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* フィルター＋追加ボタン */}
+      <div style={{ display:"flex", gap:10, marginBottom:14, flexWrap:"wrap", alignItems:"flex-end" }}>
+        <div style={{ flex:1, minWidth:160 }}>
+          <label style={S.label}>企業で絞り込み</label>
+          <select value={filterCo} onChange={e=>setFilterCo(e.target.value)} style={S.input}>
+            <option value="all">全企業</option>
+            {companies.map(c=><option key={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div style={{ flex:1, minWidth:140 }}>
+          <label style={S.label}>ステータス</label>
+          <select value={filterSt} onChange={e=>setFilterSt(e.target.value)} style={S.input}>
+            <option value="all">全て</option>
+            {STATUSES_ENG.map(s=><option key={s}>{s}</option>)}
+          </select>
+        </div>
+        <button onClick={()=>openForm()} style={{ ...S.btn, background:"#2563eb", color:"#fff" }}>＋ 稼働者を追加</button>
+      </div>
+
+      <div style={{ fontSize:12, color:"#64748b", marginBottom:10 }}>{filteredEngs.length}名</div>
+
+      {/* 一覧テーブル */}
+      <div style={{ overflowX:"auto" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+          <thead>
+            <tr style={{ borderBottom:"1px solid #334155" }}>
+              {["名前","企業名","部署名","ステータス","稼働開始日","稼働終了日","単価（万円）","契約更新日","備考",""].map(h=>(
+                <th key={h} style={{ padding:"8px 10px", color:"#64748b", fontWeight:600, textAlign:h==="名前"||h==="企業名"||h==="部署名"?"left":"center", whiteSpace:"nowrap" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredEngs.map(e => {
+              const co   = companies.find(c=>c.id===e.company_id);
+              const dept = departments.find(d=>d.id===e.department_id);
+              const isRenewalSoon = e.contract_renewal_date && e.contract_renewal_date <= d30str && e.status==="稼働中";
+              const isOverdue = e.contract_renewal_date && e.contract_renewal_date < today && e.status==="稼働中";
+              return (
+                <tr key={e.id} style={{ borderBottom:"1px solid #1e293b", background: isOverdue?"rgba(239,68,68,0.05)": isRenewalSoon?"rgba(245,158,11,0.05)":"transparent" }}>
+                  <td style={{ padding:"10px 10px", color:"#f1f5f9", fontWeight:600 }}>{e.name}</td>
+                  <td style={{ padding:"10px 10px", color:"#94a3b8", fontSize:11 }}>{co?.name?.replace("株式会社","").replace("合同会社","").trim()||"─"}</td>
+                  <td style={{ padding:"10px 10px", color:"#94a3b8", fontSize:11 }}>{dept?.name||"─"}</td>
+                  <td style={{ textAlign:"center", padding:"10px 10px" }}>
+                    <span style={{ fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:600, background:statusColor(e.status)+"22", color:statusColor(e.status) }}>{e.status}</span>
+                  </td>
+                  <td style={{ textAlign:"center", padding:"10px 10px", color:"#94a3b8" }}>{e.start_date||"─"}</td>
+                  <td style={{ textAlign:"center", padding:"10px 10px", color:"#94a3b8" }}>{e.end_date||"─"}</td>
+                  <td style={{ textAlign:"center", padding:"10px 10px", color: e.unit_price>0?"#f1f5f9":"#475569" }}>
+                    {e.unit_price>0?e.unit_price+"万":"─"}
+                  </td>
+                  <td style={{ textAlign:"center", padding:"10px 10px", color: isOverdue?"#ef4444": isRenewalSoon?"#f59e0b":"#94a3b8", fontWeight: isRenewalSoon||isOverdue?700:400 }}>
+                    {e.contract_renewal_date||"─"}
+                    {isOverdue && " ⚠️"}
+                  </td>
+                  <td style={{ padding:"10px 10px", color:"#475569", fontSize:11, maxWidth:120 }}>{e.notes?.slice(0,30)||"─"}</td>
+                  <td style={{ padding:"8px 10px", textAlign:"center", whiteSpace:"nowrap" }}>
+                    <button onClick={()=>openForm(e)} style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:11, marginRight:4 }}>編集</button>
+                    <button onClick={()=>deleteEng(e)} style={{ ...S.btn, padding:"3px 8px", background:"#7f1d1d", color:"#fca5a5", fontSize:11 }}>削除</button>
+                  </td>
+                </tr>
+              );
+            })}
+            {filteredEngs.length === 0 && (
+              <tr><td colSpan={10} style={{ textAlign:"center", padding:30, color:"#475569" }}>該当する稼働者がいません</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 追加・編集モーダル */}
+      {showForm && (
+        <div style={S.modal} onClick={e=>e.target===e.currentTarget&&setShowForm(false)}>
+          <div style={{ ...S.mbox, width:560 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+              <div style={{ fontSize:15, fontWeight:700, color:"#f1f5f9" }}>{editEng?"稼働者を編集":"稼働者を追加"}</div>
+              <button onClick={()=>setShowForm(false)} style={{ background:"none", border:"none", color:"#64748b", fontSize:20, cursor:"pointer" }}>✕</button>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div style={{ gridColumn:"span 2" }}>
+                <label style={S.label}>名前 *</label>
+                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="例: 田中 太郎" style={S.input} />
+              </div>
+              <div>
+                <label style={S.label}>企業名</label>
+                <select value={form.company_id} onChange={e=>setForm(f=>({...f,company_id:e.target.value,department_id:""}))} style={S.input}>
+                  <option value="">選択してください</option>
+                  {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>部署名</label>
+                <select value={form.department_id} onChange={e=>setForm(f=>({...f,department_id:e.target.value}))} style={S.input}>
+                  <option value="">（未選択）</option>
+                  {filteredDepts.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>ステータス</label>
+                <select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={S.input}>
+                  {STATUSES_ENG.map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>単価（万円）</label>
+                <input type="number" min="0" value={form.unit_price} onChange={e=>setForm(f=>({...f,unit_price:e.target.value}))} placeholder="例: 75" style={S.input} />
+              </div>
+              <div>
+                <label style={S.label}>稼働開始日</label>
+                <input type="date" value={form.start_date} onChange={e=>setForm(f=>({...f,start_date:e.target.value}))} style={S.input} />
+              </div>
+              <div>
+                <label style={S.label}>稼働終了日</label>
+                <input type="date" value={form.end_date} onChange={e=>setForm(f=>({...f,end_date:e.target.value}))} style={S.input} />
+              </div>
+              <div style={{ gridColumn:"span 2" }}>
+                <label style={S.label}>契約更新日</label>
+                <input type="date" value={form.contract_renewal_date} onChange={e=>setForm(f=>({...f,contract_renewal_date:e.target.value}))} style={S.input} />
+              </div>
+              <div style={{ gridColumn:"span 2" }}>
+                <label style={S.label}>備考</label>
+                <textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="スキル・特記事項など" style={{ ...S.input, resize:"vertical", minHeight:60 }} />
+              </div>
+            </div>
+            <div style={{ display:"flex", justifyContent:"flex-end", gap:10, marginTop:18 }}>
+              <button onClick={()=>setShowForm(false)} style={{ ...S.btn, background:"#334155", color:"#94a3b8" }}>キャンセル</button>
+              <button onClick={saveEng} style={{ ...S.btn, background:"#2563eb", color:"#fff", minWidth:100 }}>保存する</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── 営業戦略 ────────────────────────────────────────────────
 const StrategyView = ({ companies, strategies, onRefresh }) => {
   const [selectedCo, setSelectedCo] = useState(companies[0]?.id || "");
@@ -1344,6 +1614,7 @@ export default function App() {
   const [salesProcess, setSalesProcess] = useState([]);
   const [strategies,   setStrategies]   = useState([]);
   const [keyPersons,   setKeyPersons]   = useState([]);
+  const [engineers,    setEngineers]    = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [showModal,    setShowModal]    = useState(false);
   const [showTheme,    setShowTheme]    = useState(false);
@@ -1367,7 +1638,7 @@ export default function App() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [cos, depts, ls, hd, sp, st, kp] = await Promise.all([
+    const [cos, depts, ls, hd, sp, st, kp, eng] = await Promise.all([
       supabase.from("companies").select("*").order("sort_order"),
       supabase.from("departments").select("*").order("sort_order"),
       supabase.from("activity_logs").select("*").order("date", { ascending:false }),
@@ -1375,6 +1646,7 @@ export default function App() {
       supabase.from("sales_process").select("*"),
       supabase.from("company_strategy").select("*"),
       supabase.from("key_persons").select("*").order("created_at"),
+      supabase.from("engineers").select("*").order("start_date", { ascending:false }),
     ]);
     setCompanies(cos.data   || []);
     setDepartments(depts.data || []);
@@ -1383,6 +1655,7 @@ export default function App() {
     setSalesProcess(sp.data || []);
     setStrategies(st.data   || []);
     setKeyPersons(kp.data   || []);
+    setEngineers(eng.data   || []);
     setLoading(false);
   }, []);
 
@@ -1395,26 +1668,52 @@ export default function App() {
   }, [fetchAll]);
 
   const saveLog = useCallback(async (form) => {
-    // DBに存在する列のみ抽出して保存
     const { partner_name, ...rest } = form;
     const data = {
-      date:          rest.date,
-      company:       rest.company,
-      department:    rest.department,
-      person:        rest.person,
-      activity_type: rest.activity_type,
-      phase:         rest.phase,
-      status:        rest.status,
-      probability:   rest.probability,
-      memo:          rest.memo + (partner_name ? "　面談相手: " + partner_name : ""),
-      next_action:   rest.next_action,
+      date:             rest.date,
+      company:          rest.company,
+      department:       rest.department,
+      person:           rest.person,
+      activity_type:    rest.activity_type,
+      phase:            rest.phase,
+      status:           rest.status,
+      probability:      rest.probability,
+      memo:             rest.memo + (partner_name ? "　面談相手: " + partner_name : ""),
+      next_action:      rest.next_action,
       next_action_date: rest.next_action_date || null,
     };
     const { error } = await supabase.from("activity_logs").insert([data]);
     if (error) { console.error(error); return false; }
+
+    // 「稼働開始」の場合、部署の稼働数を+1・engineersに追加
+    if (rest.activity_type === "稼働開始" && rest.department) {
+      const co = companies.find(c => c.name === rest.company);
+      if (co) {
+        const dept = departments.find(d => d.company_id === co.id && d.name === rest.department);
+        if (dept) {
+          // 部署の稼働数+1・開始月設定
+          await supabase.from("departments").update({
+            active_count: (dept.active_count || 0) + 1,
+            start_month:  rest.date ? rest.date.slice(0, 7) : null,
+          }).eq("id", dept.id);
+          // engineers テーブルに稼働者を追加（partner_name を名前として使用）
+          if (partner_name) {
+            await supabase.from("engineers").insert([{
+              company_id:    co.id,
+              department_id: dept.id,
+              name:          partner_name,
+              start_date:    rest.date || null,
+              status:        "稼働中",
+              notes:         rest.memo || "",
+            }]);
+          }
+        }
+      }
+    }
+
     await fetchAll();
     return true;
-  }, [fetchAll]);
+  }, [fetchAll, companies, departments]);
 
   const saveHearing = useCallback(async (coId, answers, checks) => {
     const rows = HEARING_ITEMS.map((_, idx) => ({
@@ -1432,6 +1731,7 @@ export default function App() {
     { id:"summary",   icon:"📋", label:"営業サマリー" },
     { id:"log",       icon:"📝", label:"活動ログ" },
     { id:"hearing",   icon:"🎧", label:"ヒアリングシート" },
+    { id:"engineers", icon:"👥", label:"稼働者管理" },
     { id:"companies", icon:"🏢", label:"企業・部署管理" },
     { id:"strategy",  icon:"🗺", label:"営業戦略" },
   ];
@@ -1445,6 +1745,7 @@ export default function App() {
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
     hearing:   <HearingView companies={companies} departments={departments} keyPersons={keyPersons} hearingData={hearingData} onSaveHearing={saveHearing} onSaveLog={saveLog} />,
+    engineers: <EngineerView companies={companies} departments={departments} engineers={engineers} onRefresh={fetchAll} />,
     companies: <CompanyManager companies={companies} departments={departments} keyPersons={keyPersons} onRefresh={fetchAll} />,
     strategy:  <StrategyView companies={companies} strategies={strategies} onRefresh={fetchAll} />,
   };
@@ -1464,6 +1765,7 @@ export default function App() {
           {[
             { section:"メイン", items:["dashboard","kpi","summary"] },
             { section:"活動管理", items:["log","hearing"] },
+            { section:"人材管理", items:["engineers"] },
             { section:"設定・管理", items:["companies","strategy"] },
           ].map(({ section, items }) => (
             <div key={section}>
