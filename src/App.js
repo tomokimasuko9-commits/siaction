@@ -426,7 +426,7 @@ const KpiView = ({ companies, departments, logs, projects, onRefresh }) => {
               {qi===0 && <div style={{ marginLeft:"auto", fontSize:9, background:"#2563eb", color:"#fff", padding:"2px 8px", borderRadius:99, fontWeight:700 }}>進行中</div>}
             </div>
             {KPI_ROWS.map(k => {
-              const a = acts[qi][k.name]||0;
+              const a = getActsByQ(qi)[k.name]||0;
               const p = pct(a, k.tgts[qi]);
               return (
                 <div key={k.name} style={{ marginBottom:10 }}>
@@ -2244,6 +2244,3 @@ export default function App() {
     </ThemeCtx.Provider>
   );
 }
-
-
-
