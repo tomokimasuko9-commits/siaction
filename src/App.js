@@ -361,21 +361,37 @@ const Dashboard = ({ companies, departments, logs, onRefresh }) => {
 };
 
 // ── KPI進捗 ─────────────────────────────────────────────────
-const KpiView = ({ companies, departments, logs, onRefresh }) => {
+const KpiView = ({ companies, departments, logs, projects, onRefresh }) => {
   const QLABELS = ["Q1  2026年4〜6月","Q2  2026年7〜9月","Q3  2026年10〜12月","Q4  2027年1〜3月"];
   const QTHEMES = ["顧問連携確立・初回訪問","ヒアリング深化・提案開始","面談集中・クロージング加速","刈り取り・KGI達成"];
   const KPI_ROWS = [
-    { name:"稼働件数",   tgts:[12,18,27,32] },
-    { name:"面談実施数", tgts:[34,51,77,91] },
-    { name:"候補提示数", tgts:[171,257,386,457] },
-    { name:"顧問アポ数", tgts:[3,9,9,9] },
+    { name:"稼働件数",   key:"q1_target",  tgts:[12,18,27,32] },
+    { name:"面談実施数", key:"q1_target",  tgts:[34,51,77,91] },
+    { name:"候補提示数", key:"q1_target",  tgts:[171,257,386,457] },
+    { name:"顧問アポ数", key:"q1_target",  tgts:[3,9,9,9] },
+    { name:"案件数",     key:"q1_target",  tgts:[5,10,15,20] },
   ];
-  const acts = [
-    { 稼働件数: departments.reduce((s,d)=>s+(d.active_count||0),0), 面談実施数: logs.filter(l=>l.activity_type==="面談実施").length, 候補提示数: logs.filter(l=>l.activity_type==="候補者提案").length, 顧問アポ数: logs.filter(l=>l.activity_type==="顧問からアポ取得").length },
-    { 稼働件数:0,面談実施数:0,候補提示数:0,顧問アポ数:0 },
-    { 稼働件数:0,面談実施数:0,候補提示数:0,顧問アポ数:0 },
-    { 稼働件数:0,面談実施数:0,候補提示数:0,顧問アポ数:0 },
+
+  // Q別期間定義
+  const Q_RANGES = [
+    { start:"2026-04-01", end:"2026-06-30" },
+    { start:"2026-07-01", end:"2026-09-30" },
+    { start:"2026-10-01", end:"2026-12-31" },
+    { start:"2027-01-01", end:"2027-03-31" },
   ];
+
+  const getActsByQ = (qi) => {
+    const { start, end } = Q_RANGES[qi];
+    const qLogs = logs.filter(l => l.date >= start && l.date <= end);
+    const qProjs = projects.filter(p => p.received_date >= start && p.received_date <= end);
+    return {
+      稼働件数:   departments.reduce((s,d)=>s+(d.active_count||0),0),
+      面談実施数: qLogs.filter(l=>l.activity_type==="面談実施").length,
+      候補提示数: qLogs.filter(l=>l.activity_type==="候補者提案").length,
+      顧問アポ数: qLogs.filter(l=>l.activity_type==="顧問からアポ取得").length,
+      案件数:     qProjs.length,
+    };
+  };
 
   const [editingTarget, setEditingTarget] = useState(null);
   const [targetForm, setTargetForm] = useState({});
@@ -435,7 +451,7 @@ const KpiView = ({ companies, departments, logs, onRefresh }) => {
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
             <thead>
               <tr style={{ borderBottom:"1px solid #334155" }}>
-                {["企業名","優先度","Q1","Q2","Q3","Q4","通期目標","実績","達成率",""].map(h => (
+                {["企業名","優先度","Q1","Q2","Q3","Q4","通期目標","稼働実績","案件数","達成率",""].map(h => (
                   <th key={h} style={{ padding:"7px 10px", color:"#64748b", fontWeight:600, textAlign:h==="企業名"?"left":"center", whiteSpace:"nowrap" }}>{h}</th>
                 ))}
               </tr>
@@ -474,6 +490,9 @@ const KpiView = ({ companies, departments, logs, onRefresh }) => {
                     )}
                     <td style={{ textAlign:"center", padding:"8px 10px", fontWeight:700, color:"#f1f5f9" }}>{tgt}</td>
                     <td style={{ textAlign:"center", padding:"8px 10px", color:"#10b981", fontWeight:700 }}>{act}</td>
+                    <td style={{ textAlign:"center", padding:"8px 10px", color:"#818cf8", fontWeight:700 }}>
+                      {projects.filter(p=>p.company_id===co.id).length}
+                    </td>
                     <td style={{ padding:"8px 10px", minWidth:80 }}>
                       <div style={{ height:4, background:"#334155", borderRadius:99, overflow:"hidden" }}>
                         <div style={{ width:`${p}%`, height:"100%", background:p>=100?"#10b981":"#3b82f6", borderRadius:99 }} />
@@ -1115,6 +1134,290 @@ const CompanyManager = ({ companies, departments, keyPersons, archivedCos, archi
   );
 };
 
+// ── 案件管理 ─────────────────────────────────────────────────
+const PROJECT_STATUSES = ["募集中","選考中","充足","クローズ"];
+const WORK_STYLES = ["常駐（フルリモート）","常駐（ハイブリッド）","常駐（出社）","リモート可","要相談"];
+
+const ProjectView = ({ companies, departments, projects, onRefresh }) => {
+  const [filterCo,   setFilterCo]   = useState("all");
+  const [filterDept, setFilterDept] = useState("all");
+  const [filterSt,   setFilterSt]   = useState("募集中");
+  const [showForm,   setShowForm]   = useState(false);
+  const [editProj,   setEditProj]   = useState(null);
+  const [detailProj, setDetailProj] = useState(null);
+  const emptyForm = {
+    company_id:"", department_id:"", received_date:new Date().toISOString().slice(0,10),
+    project_name:"", business_content:"", required_skills:"", preferred_skills:"",
+    person_image:"", work_style:"", settlement_range:"", commercial_flow:"",
+    unit_price:"", notes:"", status:"募集中"
+  };
+  const [form, setForm] = useState(emptyForm);
+
+  const filterDepts = form.company_id ? departments.filter(d=>d.company_id===form.company_id) : [];
+  const listDepts   = filterCo !== "all"
+    ? departments.filter(d=>{ const co=companies.find(c=>c.name===filterCo); return co&&d.company_id===co.id; })
+    : departments;
+
+  const filtered = projects.filter(p => {
+    if (filterCo !== "all") {
+      const co = companies.find(c=>c.name===filterCo);
+      if (!co || p.company_id !== co.id) return false;
+    }
+    if (filterDept !== "all") {
+      const dept = departments.find(d=>d.name===filterDept);
+      if (!dept || p.department_id !== dept.id) return false;
+    }
+    if (filterSt !== "all" && p.status !== filterSt) return false;
+    return true;
+  });
+
+  const openForm = (proj=null) => {
+    setForm(proj ? {...proj} : emptyForm);
+    setEditProj(proj);
+    setShowForm(true);
+  };
+
+  const saveProj = async () => {
+    if (!form.project_name.trim()) { alert("案件名を入力してください"); return; }
+    const data = {
+      company_id:       form.company_id || null,
+      department_id:    form.department_id || null,
+      received_date:    form.received_date || null,
+      project_name:     form.project_name,
+      business_content: form.business_content,
+      required_skills:  form.required_skills,
+      preferred_skills: form.preferred_skills,
+      person_image:     form.person_image,
+      work_style:       form.work_style,
+      settlement_range: form.settlement_range,
+      commercial_flow:  form.commercial_flow,
+      unit_price:       form.unit_price,
+      notes:            form.notes,
+      status:           form.status,
+    };
+    if (editProj) {
+      await supabase.from("projects").update(data).eq("id", editProj.id);
+    } else {
+      await supabase.from("projects").insert([data]);
+    }
+    setShowForm(false);
+    onRefresh();
+  };
+
+  const deleteProj = async (id) => {
+    if (!window.confirm("この案件を削除しますか？")) return;
+    await supabase.from("projects").delete().eq("id", id);
+    onRefresh();
+  };
+
+  const stColor = (s) =>
+    s==="募集中"?"#3b82f6": s==="選考中"?"#f59e0b": s==="充足"?"#10b981":"#475569";
+
+  // 企業×部署ごとにグループ化
+  const grouped = {};
+  filtered.forEach(p => {
+    const co   = companies.find(c=>c.id===p.company_id);
+    const dept = departments.find(d=>d.id===p.department_id);
+    const coKey = co?.name || "未設定";
+    const deptKey = dept?.name || "未設定";
+    if (!grouped[coKey]) grouped[coKey] = {};
+    if (!grouped[coKey][deptKey]) grouped[coKey][deptKey] = [];
+    grouped[coKey][deptKey].push(p);
+  });
+
+  return (
+    <div>
+      {/* サマリー */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:16 }}>
+        {[
+          { label:"募集中",  val:projects.filter(p=>p.status==="募集中").length,  color:"#3b82f6" },
+          { label:"選考中",  val:projects.filter(p=>p.status==="選考中").length,  color:"#f59e0b" },
+          { label:"充足",    val:projects.filter(p=>p.status==="充足").length,    color:"#10b981" },
+          { label:"総案件数",val:projects.length,                                  color:"#818cf8" },
+        ].map(m=>(
+          <div key={m.label} style={{ ...S.card, borderTop:`3px solid ${m.color}`, marginBottom:0 }}>
+            <div style={{ fontSize:11, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:5 }}>{m.label}</div>
+            <div style={{ fontSize:26, fontWeight:700, color:m.color }}>{m.val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* フィルター＋追加ボタン */}
+      <div style={{ display:"flex", gap:10, marginBottom:14, flexWrap:"wrap", alignItems:"flex-end" }}>
+        <div style={{ flex:1, minWidth:160 }}>
+          <label style={S.label}>企業</label>
+          <select value={filterCo} onChange={e=>{setFilterCo(e.target.value);setFilterDept("all");}} style={S.input}>
+            <option value="all">全企業</option>
+            {companies.map(c=><option key={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div style={{ flex:1, minWidth:160 }}>
+          <label style={S.label}>部署</label>
+          <select value={filterDept} onChange={e=>setFilterDept(e.target.value)} style={S.input}>
+            <option value="all">全部署</option>
+            {listDepts.map(d=><option key={d.id}>{d.name}</option>)}
+          </select>
+        </div>
+        <div style={{ minWidth:120 }}>
+          <label style={S.label}>ステータス</label>
+          <select value={filterSt} onChange={e=>setFilterSt(e.target.value)} style={S.input}>
+            <option value="all">全て</option>
+            {PROJECT_STATUSES.map(s=><option key={s}>{s}</option>)}
+          </select>
+        </div>
+        <button onClick={()=>openForm()} style={{ ...S.btn, background:"#2563eb", color:"#fff" }}>＋ 案件を追加</button>
+      </div>
+
+      <div style={{ fontSize:12, color:"#64748b", marginBottom:12 }}>{filtered.length}件</div>
+
+      {/* 企業×部署グループ表示 */}
+      {Object.entries(grouped).map(([coName, deptMap]) => (
+        <div key={coName} style={{ marginBottom:20 }}>
+          <div style={{ fontSize:14, fontWeight:700, color:"#f1f5f9", marginBottom:8, paddingBottom:6, borderBottom:"1px solid #334155" }}>
+            🏢 {coName}
+          </div>
+          {Object.entries(deptMap).map(([deptName, projs]) => (
+            <div key={deptName} style={{ marginBottom:14, paddingLeft:12 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:8 }}>
+                └ {deptName}（{projs.length}件）
+              </div>
+              {projs.map(p => (
+                <div key={p.id} style={{ ...S.card, marginBottom:8, cursor:"pointer" }}
+                  onClick={()=>setDetailProj(detailProj?.id===p.id?null:p)}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontSize:10, padding:"2px 8px", borderRadius:99, fontWeight:600, background:stColor(p.status)+"22", color:stColor(p.status) }}>{p.status}</span>
+                    <span style={{ flex:1, fontSize:13, fontWeight:600, color:"#f1f5f9" }}>{p.project_name}</span>
+                    {p.unit_price && <span style={{ fontSize:12, color:"#818cf8", fontWeight:700 }}>{p.unit_price}</span>}
+                    {p.received_date && <span style={{ fontSize:11, color:"#475569" }}>{p.received_date.slice(5)}</span>}
+                    <button onClick={e=>{e.stopPropagation();openForm(p);}}
+                      style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:11 }}>編集</button>
+                    <button onClick={e=>{e.stopPropagation();deleteProj(p.id);}}
+                      style={{ ...S.btn, padding:"3px 8px", background:"#7f1d1d", color:"#fca5a5", fontSize:11 }}>削除</button>
+                    <span style={{ color:"#475569", fontSize:12 }}>{detailProj?.id===p.id?"▲":"▼"}</span>
+                  </div>
+
+                  {detailProj?.id===p.id && (
+                    <div style={{ marginTop:12, borderTop:"1px solid #334155", paddingTop:12 }}>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                        {[
+                          { label:"案件受領日", val:p.received_date },
+                          { label:"勤務形態",   val:p.work_style },
+                          { label:"精算幅",     val:p.settlement_range },
+                          { label:"商流",       val:p.commercial_flow },
+                          { label:"単価",       val:p.unit_price },
+                        ].map(({label,val})=> val ? (
+                          <div key={label}>
+                            <div style={{ fontSize:10, color:"#64748b", marginBottom:2, textTransform:"uppercase", letterSpacing:"0.6px" }}>{label}</div>
+                            <div style={{ fontSize:13, color:"#f1f5f9" }}>{val}</div>
+                          </div>
+                        ) : null)}
+                      </div>
+                      {[
+                        { label:"業務内容",     val:p.business_content },
+                        { label:"必須要件",     val:p.required_skills },
+                        { label:"歓迎要件",     val:p.preferred_skills },
+                        { label:"求める人物像", val:p.person_image },
+                        { label:"その他備考",   val:p.notes },
+                      ].map(({label,val})=> val ? (
+                        <div key={label} style={{ marginTop:10 }}>
+                          <div style={{ fontSize:10, color:"#64748b", marginBottom:3, textTransform:"uppercase", letterSpacing:"0.6px" }}>{label}</div>
+                          <div style={{ fontSize:13, color:"#e2e8f0", lineHeight:1.7, borderLeft:"2px solid #334155", paddingLeft:10 }}>{val}</div>
+                        </div>
+                      ) : null)}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
+      {filtered.length === 0 && (
+        <div style={{ textAlign:"center", padding:40, color:"#475569" }}>該当する案件がありません</div>
+      )}
+
+      {/* 登録・編集モーダル */}
+      {showForm && (
+        <div style={S.modal} onClick={e=>e.target===e.currentTarget&&setShowForm(false)}>
+          <div style={{ ...S.mbox, width:640 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+              <div style={{ fontSize:15, fontWeight:700, color:"#f1f5f9" }}>{editProj?"案件を編集":"案件を追加"}</div>
+              <button onClick={()=>setShowForm(false)} style={{ background:"none", border:"none", color:"#64748b", fontSize:20, cursor:"pointer" }}>✕</button>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={S.label}>企業名</label>
+                <select value={form.company_id} onChange={e=>setForm(f=>({...f,company_id:e.target.value,department_id:""}))} style={S.input}>
+                  <option value="">選択してください</option>
+                  {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>部署名</label>
+                <select value={form.department_id} onChange={e=>setForm(f=>({...f,department_id:e.target.value}))} style={S.input}>
+                  <option value="">（未選択）</option>
+                  {filterDepts.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>案件受領日</label>
+                <input type="date" value={form.received_date} onChange={e=>setForm(f=>({...f,received_date:e.target.value}))} style={S.input} />
+              </div>
+              <div>
+                <label style={S.label}>ステータス</label>
+                <select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={S.input}>
+                  {PROJECT_STATUSES.map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div style={{ gridColumn:"span 2" }}>
+                <label style={S.label}>案件名 *</label>
+                <input value={form.project_name} onChange={e=>setForm(f=>({...f,project_name:e.target.value}))} placeholder="例: Javaエンジニア募集（金融系基幹システム）" style={S.input} />
+              </div>
+              <div>
+                <label style={S.label}>勤務形態</label>
+                <select value={form.work_style} onChange={e=>setForm(f=>({...f,work_style:e.target.value}))} style={S.input}>
+                  <option value="">選択</option>
+                  {WORK_STYLES.map(w=><option key={w}>{w}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>単価</label>
+                <input value={form.unit_price} onChange={e=>setForm(f=>({...f,unit_price:e.target.value}))} placeholder="例: 70〜85万円/月" style={S.input} />
+              </div>
+              <div>
+                <label style={S.label}>精算幅</label>
+                <input value={form.settlement_range} onChange={e=>setForm(f=>({...f,settlement_range:e.target.value}))} placeholder="例: 140〜180h" style={S.input} />
+              </div>
+              <div>
+                <label style={S.label}>商流</label>
+                <input value={form.commercial_flow} onChange={e=>setForm(f=>({...f,commercial_flow:e.target.value}))} placeholder="例: 直請け / 1社挟み" style={S.input} />
+              </div>
+            </div>
+            {[
+              { key:"business_content", label:"業務内容",     ph:"担当する業務の詳細を記載..." },
+              { key:"required_skills",  label:"必須要件",     ph:"必須スキル・経験・資格など..." },
+              { key:"preferred_skills", label:"歓迎要件",     ph:"あれば尚可のスキル・経験..." },
+              { key:"person_image",     label:"求める人物像", ph:"コミュニケーション・人物面の要件..." },
+              { key:"notes",            label:"その他備考",   ph:"補足情報・注意事項など..." },
+            ].map(f2=>(
+              <div key={f2.key} style={{ marginTop:10 }}>
+                <label style={S.label}>{f2.label}</label>
+                <textarea value={form[f2.key]} onChange={e=>setForm(f=>({...f,[f2.key]:e.target.value}))}
+                  placeholder={f2.ph}
+                  style={{ ...S.input, resize:"vertical", minHeight:70 }} />
+              </div>
+            ))}
+            <div style={{ display:"flex", justifyContent:"flex-end", gap:10, marginTop:18 }}>
+              <button onClick={()=>setShowForm(false)} style={{ ...S.btn, background:"#334155", color:"#94a3b8" }}>キャンセル</button>
+              <button onClick={saveProj} style={{ ...S.btn, background:"#2563eb", color:"#fff", minWidth:100 }}>保存する</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── 稼働者管理 ──────────────────────────────────────────────
 const EngineerView = ({ companies, departments, engineers, archivedEngs, onRefresh }) => {
   const [filterCo,   setFilterCo]   = useState("all");
@@ -1723,6 +2026,7 @@ export default function App() {
   const [archivedCos,  setArchivedCos]  = useState([]);
   const [archivedDepts,setArchivedDepts]= useState([]);
   const [archivedEngs, setArchivedEngs] = useState([]);
+  const [projects,     setProjects]     = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [showModal,    setShowModal]    = useState(false);
   const [showTheme,    setShowTheme]    = useState(false);
@@ -1746,7 +2050,7 @@ export default function App() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [cos, depts, ls, hd, sp, st, kp, eng, aCos, aDepts, aEngs] = await Promise.all([
+    const [cos, depts, ls, hd, sp, st, kp, eng, aCos, aDepts, aEngs, proj] = await Promise.all([
       supabase.from("companies").select("*").order("sort_order").eq("is_archived", false),
       supabase.from("departments").select("*").order("sort_order").eq("is_archived", false),
       supabase.from("activity_logs").select("*").order("date", { ascending:false }),
@@ -1758,6 +2062,7 @@ export default function App() {
       supabase.from("companies").select("*").eq("is_archived", true).order("sort_order"),
       supabase.from("departments").select("*").eq("is_archived", true),
       supabase.from("engineers").select("*").eq("is_archived", true).order("start_date", { ascending:false }),
+      supabase.from("projects").select("*").order("received_date", { ascending:false }),
     ]);
     setCompanies(cos.data     || []);
     setDepartments(depts.data || []);
@@ -1770,6 +2075,7 @@ export default function App() {
     setArchivedCos(aCos.data  || []);
     setArchivedDepts(aDepts.data || []);
     setArchivedEngs(aEngs.data   || []);
+    setProjects(proj.data     || []);
     setLoading(false);
   }, []);
 
@@ -1846,6 +2152,7 @@ export default function App() {
     { id:"log",       icon:"📝", label:"活動ログ" },
     { id:"hearing",   icon:"🎧", label:"ヒアリングシート" },
     { id:"engineers", icon:"👥", label:"稼働者管理" },
+    { id:"projects",  icon:"📁", label:"案件管理" },
     { id:"companies", icon:"🏢", label:"企業・部署管理" },
     { id:"strategy",  icon:"🗺", label:"営業戦略" },
   ];
@@ -1855,11 +2162,12 @@ export default function App() {
 
   const views = {
     dashboard: <Dashboard companies={companies} departments={departments} logs={logs} onRefresh={fetchAll} />,
-    kpi:       <KpiView   companies={companies} departments={departments} logs={logs} onRefresh={fetchAll} />,
+    kpi:       <KpiView   companies={companies} departments={departments} logs={logs} projects={projects} onRefresh={fetchAll} />,
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
     hearing:   <HearingView companies={companies} departments={departments} keyPersons={keyPersons} hearingData={hearingData} onSaveHearing={saveHearing} onSaveLog={saveLog} />,
     engineers: <EngineerView companies={companies} departments={departments} engineers={engineers} archivedEngs={archivedEngs} onRefresh={fetchAll} />,
+    projects:  <ProjectView  companies={companies} departments={departments} projects={projects} onRefresh={fetchAll} />,
     companies: <CompanyManager companies={companies} departments={departments} keyPersons={keyPersons} archivedCos={archivedCos} archivedDepts={archivedDepts} onRefresh={fetchAll} />,
     strategy:  <StrategyView companies={companies} strategies={strategies} onRefresh={fetchAll} />,
   };
@@ -1879,7 +2187,7 @@ export default function App() {
           {[
             { section:"メイン", items:["dashboard","kpi","summary"] },
             { section:"活動管理", items:["log","hearing"] },
-            { section:"人材管理", items:["engineers"] },
+            { section:"人材管理", items:["engineers","projects"] },
             { section:"設定・管理", items:["companies","strategy"] },
           ].map(({ section, items }) => (
             <div key={section}>
