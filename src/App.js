@@ -361,16 +361,34 @@ const Dashboard = ({ companies, departments, logs, onRefresh }) => {
 };
 
 // ── KPI進捗 ─────────────────────────────────────────────────
-const KpiView = ({ companies, departments, logs, projects, onRefresh }) => {
+const KpiView = ({ companies, departments, logs, projects, candidates, kpiTargets, onRefresh }) => {
   const QLABELS = ["Q1  2026年4〜6月","Q2  2026年7〜9月","Q3  2026年10〜12月","Q4  2027年1〜3月"];
   const QTHEMES = ["顧問連携確立・初回訪問","ヒアリング深化・提案開始","面談集中・クロージング加速","刈り取り・KGI達成"];
-  const KPI_ROWS = [
-    { name:"稼働件数",   key:"q1_target",  tgts:[12,18,27,32] },
-    { name:"面談実施数", key:"q1_target",  tgts:[34,51,77,91] },
-    { name:"候補提示数", key:"q1_target",  tgts:[171,257,386,457] },
-    { name:"顧問アポ数", key:"q1_target",  tgts:[3,9,9,9] },
-    { name:"案件数",     key:"q1_target",  tgts:[5,10,15,20] },
-  ];
+  const KPI_NAMES = ["稼働件数","面談実施数","候補提示数","顧問アポ数","案件数"];
+  const DEFAULT_TGTS = {
+    稼働件数:   [12,18,27,32],
+    面談実施数: [34,51,77,91],
+    候補提示数: [171,257,386,457],
+    顧問アポ数: [3,9,9,9],
+    案件数:     [5,10,15,20],
+  };
+  // kpiTargets から目標値を取得（なければデフォルト値）
+  const getTgt = (qi, name) => {
+    const found = kpiTargets.find(t => t.quarter === qi+1 && t.kpi_name === name);
+    return found ? found.target : (DEFAULT_TGTS[name]?.[qi] || 0);
+  };
+  const [editingKpi, setEditingKpi] = useState(null); // {qi, name}
+  const [kpiEditVal, setKpiEditVal] = useState("");
+  const saveKpiTarget = async (qi, name, val) => {
+    const existing = kpiTargets.find(t => t.quarter === qi+1 && t.kpi_name === name);
+    if (existing) {
+      await supabase.from("kpi_targets").update({ target: parseInt(val)||0 }).eq("id", existing.id);
+    } else {
+      await supabase.from("kpi_targets").insert([{ quarter:qi+1, kpi_name:name, target:parseInt(val)||0 }]);
+    }
+    setEditingKpi(null);
+    onRefresh();
+  };
 
   // Q別期間定義
   const Q_RANGES = [
@@ -382,12 +400,15 @@ const KpiView = ({ companies, departments, logs, projects, onRefresh }) => {
 
   const getActsByQ = (qi) => {
     const { start, end } = Q_RANGES[qi];
-    const qLogs = logs.filter(l => l.date >= start && l.date <= end);
+    const qLogs  = logs.filter(l => l.date >= start && l.date <= end);
     const qProjs = projects.filter(p => p.received_date >= start && p.received_date <= end);
+    // 案件に紐づく候補者（推薦）・面談カウント
+    const qProjIds = new Set(qProjs.map(p=>p.id));
+    const qCands = candidates.filter(c => qProjIds.has(c.project_id));
     return {
       稼働件数:   departments.reduce((s,d)=>s+(d.active_count||0),0),
-      面談実施数: qLogs.filter(l=>l.activity_type==="面談実施").length,
-      候補提示数: qLogs.filter(l=>l.activity_type==="候補者提案").length,
+      面談実施数: qCands.filter(c=>c.interviewed).length + qLogs.filter(l=>l.activity_type==="面談実施").length,
+      候補提示数: qCands.filter(c=>c.recommended).length + qLogs.filter(l=>l.activity_type==="候補者提案").length,
       顧問アポ数: qLogs.filter(l=>l.activity_type==="顧問からアポ取得").length,
       案件数:     qProjs.length,
     };
@@ -1134,11 +1155,153 @@ const CompanyManager = ({ companies, departments, keyPersons, archivedCos, archi
   );
 };
 
+// ── 候補者管理コンポーネント ─────────────────────────────────
+const CAND_STATUSES = ["推薦","面談","内定","稼働開始","見送り"];
+const CAND_STATUS_KEYS = { 推薦:"recommended", 面談:"interviewed", 内定:"offered", 稼働開始:"started", 見送り:"passed" };
+const CAND_COLORS = { 推薦:"#3b82f6", 面談:"#f59e0b", 内定:"#10b981", 稼働開始:"#8b5cf6", 見送り:"#475569" };
+
+const CandidateSection = ({ projectId, candidates, onRefresh }) => {
+  const [newName, setNewName] = useState("");
+  const [adding, setAdding]   = useState(false);
+
+  const projCands = candidates.filter(c => c.project_id === projectId);
+
+  // カウント（累積方式：推薦=全員、面談=interviewed以上など）
+  const counts = {
+    推薦:   projCands.filter(c=>c.recommended).length,
+    面談:   projCands.filter(c=>c.interviewed).length,
+    内定:   projCands.filter(c=>c.offered).length,
+    稼働開始: projCands.filter(c=>c.started).length,
+    見送り: projCands.filter(c=>c.passed).length,
+  };
+
+  const addCandidate = async () => {
+    if (!newName.trim()) return;
+    await supabase.from("project_candidates").insert([{
+      project_id: projectId,
+      name: newName.trim(),
+      recommended: true,
+      interviewed: false,
+      offered: false,
+      started: false,
+      passed: false,
+    }]);
+    setNewName(""); setAdding(false);
+    onRefresh();
+  };
+
+  const toggleStatus = async (cand, statusKey) => {
+    const currentVal = cand[statusKey];
+    // 見送りは単独トグル
+    if (statusKey === "passed") {
+      await supabase.from("project_candidates").update({ passed: !currentVal }).eq("id", cand.id);
+      onRefresh(); return;
+    }
+    // 推薦は常にtrue（最初のステータス）
+    if (statusKey === "recommended") return;
+    // 累積方式：面談ON→面談・推薦がtrue、内定ON→内定・面談・推薦がtrue
+    const order = ["recommended","interviewed","offered","started"];
+    const idx = order.indexOf(statusKey);
+    const updates = {};
+    if (!currentVal) {
+      // ONにする：それ以下のステータスも全部ON
+      order.slice(0, idx+1).forEach(k => updates[k] = true);
+    } else {
+      // OFFにする：それ以上のステータスも全部OFF
+      order.slice(idx).forEach(k => updates[k] = false);
+    }
+    await supabase.from("project_candidates").update(updates).eq("id", cand.id);
+    onRefresh();
+  };
+
+  const deleteCandidate = async (id) => {
+    await supabase.from("project_candidates").delete().eq("id", id);
+    onRefresh();
+  };
+
+  return (
+    <div style={{ marginTop:14, borderTop:"1px solid #334155", paddingTop:12 }}>
+      {/* ステータス別カウント */}
+      <div style={{ display:"flex", gap:8, marginBottom:10, flexWrap:"wrap" }}>
+        {CAND_STATUSES.map(s => (
+          <div key={s} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 10px", borderRadius:99, background:CAND_COLORS[s]+"22", border:`1px solid ${CAND_COLORS[s]}44` }}>
+            <span style={{ fontSize:11, color:CAND_COLORS[s], fontWeight:600 }}>{s}</span>
+            <span style={{ fontSize:13, fontWeight:700, color:CAND_COLORS[s] }}>{counts[s]}</span>
+          </div>
+        ))}
+        <button onClick={()=>setAdding(true)}
+          style={{ ...S.btn, padding:"3px 10px", background:"#2563eb", color:"#fff", fontSize:11, marginLeft:"auto" }}>
+          ＋ 候補者を追加
+        </button>
+      </div>
+
+      {/* 候補者追加フォーム */}
+      {adding && (
+        <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+          <input value={newName} onChange={e=>setNewName(e.target.value)}
+            placeholder="推薦者名を入力" style={{ ...S.input, flex:1 }}
+            onKeyDown={e=>e.key==="Enter"&&addCandidate()} autoFocus />
+          <button onClick={addCandidate} style={{ ...S.btn, background:"#2563eb", color:"#fff", fontSize:12 }}>追加</button>
+          <button onClick={()=>setAdding(false)} style={{ ...S.btn, background:"#334155", color:"#94a3b8", fontSize:12 }}>キャンセル</button>
+        </div>
+      )}
+
+      {/* 候補者一覧 */}
+      {projCands.length > 0 && (
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+          <thead>
+            <tr style={{ borderBottom:"1px solid #334155" }}>
+              <th style={{ padding:"5px 8px", color:"#64748b", textAlign:"left", fontWeight:600 }}>推薦者名</th>
+              {CAND_STATUSES.map(s=>(
+                <th key={s} style={{ padding:"5px 8px", color:CAND_COLORS[s], textAlign:"center", fontWeight:600, whiteSpace:"nowrap" }}>{s}</th>
+              ))}
+              <th style={{ width:40 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {projCands.map(c => (
+              <tr key={c.id} style={{ borderBottom:"1px solid #1e293b" }}>
+                <td style={{ padding:"7px 8px", color:"#f1f5f9", fontWeight:600 }}>{c.name}</td>
+                {CAND_STATUSES.map(s => {
+                  const key = CAND_STATUS_KEYS[s];
+                  const isOn = c[key];
+                  const isFixed = s === "推薦"; // 推薦は常にtrue
+                  return (
+                    <td key={s} style={{ textAlign:"center", padding:"7px 8px" }}>
+                      <div onClick={()=>!isFixed&&toggleStatus(c, key)}
+                        style={{
+                          width:22, height:22, borderRadius:6, margin:"0 auto",
+                          background: isOn ? CAND_COLORS[s] : "#334155",
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          fontSize:12, color:"#fff", cursor: isFixed?"default":"pointer",
+                          fontWeight:700, userSelect:"none",
+                        }}>
+                        {isOn ? "✓" : ""}
+                      </div>
+                    </td>
+                  );
+                })}
+                <td style={{ textAlign:"center", padding:"4px" }}>
+                  <button onClick={()=>deleteCandidate(c.id)}
+                    style={{ background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:14 }}>×</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {projCands.length === 0 && !adding && (
+        <div style={{ fontSize:11, color:"#475569", textAlign:"center", padding:"8px 0" }}>候補者未登録</div>
+      )}
+    </div>
+  );
+};
+
 // ── 案件管理 ─────────────────────────────────────────────────
 const PROJECT_STATUSES = ["募集中","選考中","充足","クローズ"];
 const WORK_STYLES = ["常駐（フルリモート）","常駐（ハイブリッド）","常駐（出社）","リモート可","要相談"];
 
-const ProjectView = ({ companies, departments, projects, onRefresh }) => {
+const ProjectView = ({ companies, departments, projects, candidates, onRefresh }) => {
   const [filterCo,   setFilterCo]   = useState("all");
   const [filterDept, setFilterDept] = useState("all");
   const [filterSt,   setFilterSt]   = useState("募集中");
@@ -1324,6 +1487,9 @@ const ProjectView = ({ companies, departments, projects, onRefresh }) => {
                           <div style={{ fontSize:13, color:"#e2e8f0", lineHeight:1.7, borderLeft:"2px solid #334155", paddingLeft:10 }}>{val}</div>
                         </div>
                       ) : null)}
+
+                      {/* 候補者管理セクション */}
+                      <CandidateSection projectId={p.id} candidates={candidates} onRefresh={onRefresh} />
                     </div>
                   )}
                 </div>
@@ -2027,6 +2193,8 @@ export default function App() {
   const [archivedDepts,setArchivedDepts]= useState([]);
   const [archivedEngs, setArchivedEngs] = useState([]);
   const [projects,     setProjects]     = useState([]);
+  const [candidates,   setCandidates]   = useState([]);
+  const [kpiTargets,   setKpiTargets]   = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [showModal,    setShowModal]    = useState(false);
   const [showTheme,    setShowTheme]    = useState(false);
@@ -2050,7 +2218,7 @@ export default function App() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [cos, depts, ls, hd, sp, st, kp, eng, aCos, aDepts, aEngs, proj] = await Promise.all([
+    const [cos, depts, ls, hd, sp, st, kp, eng, aCos, aDepts, aEngs, proj, cands, kpiTgts] = await Promise.all([
       supabase.from("companies").select("*").order("sort_order").eq("is_archived", false),
       supabase.from("departments").select("*").order("sort_order").eq("is_archived", false),
       supabase.from("activity_logs").select("*").order("date", { ascending:false }),
@@ -2063,6 +2231,8 @@ export default function App() {
       supabase.from("departments").select("*").eq("is_archived", true),
       supabase.from("engineers").select("*").eq("is_archived", true).order("start_date", { ascending:false }),
       supabase.from("projects").select("*").order("received_date", { ascending:false }),
+      supabase.from("project_candidates").select("*").order("created_at"),
+      supabase.from("kpi_targets").select("*").order("quarter"),
     ]);
     setCompanies(cos.data     || []);
     setDepartments(depts.data || []);
@@ -2075,7 +2245,9 @@ export default function App() {
     setArchivedCos(aCos.data  || []);
     setArchivedDepts(aDepts.data || []);
     setArchivedEngs(aEngs.data   || []);
-    setProjects(proj.data     || []);
+    setProjects(proj.data       || []);
+    setCandidates(cands.data    || []);
+    setKpiTargets(kpiTgts.data  || []);
     setLoading(false);
   }, []);
 
@@ -2162,12 +2334,12 @@ export default function App() {
 
   const views = {
     dashboard: <Dashboard companies={companies} departments={departments} logs={logs} onRefresh={fetchAll} />,
-    kpi:       <KpiView   companies={companies} departments={departments} logs={logs} projects={projects} onRefresh={fetchAll} />,
+    kpi:       <KpiView   companies={companies} departments={departments} logs={logs} projects={projects} candidates={candidates} kpiTargets={kpiTargets} onRefresh={fetchAll} />,
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
     hearing:   <HearingView companies={companies} departments={departments} keyPersons={keyPersons} hearingData={hearingData} onSaveHearing={saveHearing} onSaveLog={saveLog} />,
     engineers: <EngineerView companies={companies} departments={departments} engineers={engineers} archivedEngs={archivedEngs} onRefresh={fetchAll} />,
-    projects:  <ProjectView  companies={companies} departments={departments} projects={projects} onRefresh={fetchAll} />,
+    projects:  <ProjectView  companies={companies} departments={departments} projects={projects} candidates={candidates} onRefresh={fetchAll} />,
     companies: <CompanyManager companies={companies} departments={departments} keyPersons={keyPersons} archivedCos={archivedCos} archivedDepts={archivedDepts} onRefresh={fetchAll} />,
     strategy:  <StrategyView companies={companies} strategies={strategies} onRefresh={fetchAll} />,
   };
