@@ -92,13 +92,13 @@ const ProgBar = ({ act, tgt, color, h=5 }) => {
 
 const FormField = ({ label, children }) => (
   <div>
-    <label style={S.label}>{label}</label>
+    <label style={ S.label }>{label}</label>
     {children}
   </div>
 );
 
 const ModalWrap = ({ onClose, title, children, width=560 }) => (
-  <div style={S.modal} onClick={e => e.target === e.currentTarget && onClose()}>
+  <div style={ S.modal } onClick={e => e.target === e.currentTarget && onClose()}>
     <div style={{ ...S.mbox, width }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
         <div style={{ fontSize:15, fontWeight:700, color:"#f1f5f9" }}>{title}</div>
@@ -491,7 +491,7 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
         ))}
       </div>
 
-      <div style={S.card}>
+      <div style={ S.card }>
         <div style={{ fontSize:13, fontWeight:600, color:"#f1f5f9", marginBottom:4 }}>企業別 稼働目標・実績</div>
         <div style={{ fontSize:11, color:"#475569", marginBottom:14 }}>✏️ 各行の「編集」ボタンでQ別目標数値を変更できます</div>
         <div style={{ overflowX:"auto" }}>
@@ -667,7 +667,7 @@ const SummaryView = ({ companies, salesProcess, onUpdateProcess }) => {
                   const v = getStatus(co.id, step);
                   return (
                     <td key={step} style={{ textAlign:"center", padding:"6px 10px" }}>
-                      <div style={statusStyle(v)} onClick={() => cycleStatus(co.id, step)}>
+                      <div style={ statusStyle(v) } onClick={() => cycleStatus(co.id, step)}>
                         {v === "✓" ? "✓" : v === "▶" ? "▶" : ""}
                       </div>
                     </td>
@@ -712,16 +712,16 @@ const LogView = ({ logs, companies, departments, loading }) => {
     <div>
       <div style={{ display:"flex", gap:10, marginBottom:14, flexWrap:"wrap" }}>
         <div style={{ flex:1, minWidth:160 }}>
-          <label style={S.label}>企業で絞り込み</label>
+          <label style={ S.label }>企業で絞り込み</label>
           <select value={filterCo} onChange={e => { setFilterCo(e.target.value); setFilterDept("all"); }}
-            style={S.input}>
+            style={ S.input }>
             <option value="all">全企業</option>
             {companies.map(c => <option key={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div style={{ flex:1, minWidth:160 }}>
-          <label style={S.label}>部署で絞り込み</label>
-          <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={S.input}>
+          <label style={ S.label }>部署で絞り込み</label>
+          <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={ S.input }>
             <option value="all">全部署</option>
             {depts.map(d => <option key={d.id}>{d.name}</option>)}
           </select>
@@ -802,8 +802,8 @@ const HearingView = ({ companies, departments, keyPersons, hearingData, onSaveHe
     <div>
       <div style={{ ...S.card, display:"flex", alignItems:"center", gap:12, marginBottom:14, flexWrap:"wrap" }}>
         <div style={{ flex:1, minWidth:200 }}>
-          <label style={S.label}>対象企業</label>
-          <select value={coId} onChange={e => setCoId(e.target.value)} style={S.input}>
+          <label style={ S.label }>対象企業</label>
+          <select value={coId} onChange={e => setCoId(e.target.value)} style={ S.input }>
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
@@ -819,13 +819,13 @@ const HearingView = ({ companies, departments, keyPersons, hearingData, onSaveHe
         <div style={{ fontSize:12, fontWeight:600, color:"#f1f5f9", marginBottom:10 }}>基本情報</div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
           <FormField label="訪問日">
-            <input type="date" value={visitInfo.date} onChange={e=>setVisitInfo(v=>({...v,date:e.target.value}))} style={S.input} />
+            <input type="date" value={visitInfo.date} onChange={e=>setVisitInfo(v=>({...v,date:e.target.value}))} style={ S.input } />
           </FormField>
           <FormField label="担当営業">
-            <input value={visitInfo.person} onChange={e=>setVisitInfo(v=>({...v,person:e.target.value}))} style={S.input} placeholder="担当営業" />
+            <input value={visitInfo.person} onChange={e=>setVisitInfo(v=>({...v,person:e.target.value}))} style={ S.input } placeholder="担当営業" />
           </FormField>
           <FormField label="面談相手（キーマン）">
-            <select value={visitInfo.partner_kp||""} onChange={e=>setVisitInfo(v=>({...v,partner_kp:e.target.value,partner:e.target.value}))} style={S.input}>
+            <select value={visitInfo.partner_kp||""} onChange={e=>setVisitInfo(v=>({...v,partner_kp:e.target.value,partner:e.target.value}))} style={ S.input }>
               <option value="">（未選択 / 直接入力）</option>
               {keyPersons.filter(kp=>{
                 const co = companies.find(c=>c.id===coId);
@@ -836,7 +836,7 @@ const HearingView = ({ companies, departments, keyPersons, hearingData, onSaveHe
             </select>
           </FormField>
           <FormField label="面談相手の部署">
-            <input value={visitInfo.partner_dept} onChange={e=>setVisitInfo(v=>({...v,partner_dept:e.target.value}))} style={S.input} placeholder="面談相手の部署" />
+            <input value={visitInfo.partner_dept} onChange={e=>setVisitInfo(v=>({...v,partner_dept:e.target.value}))} style={ S.input } placeholder="面談相手の部署" />
           </FormField>
         </div>
       </div>
@@ -958,17 +958,17 @@ const CompanyManager = ({ companies, departments, keyPersons, archivedCos, archi
     return (
       <div style={{ background:"#0f172a", borderRadius:8, padding:10, marginTop:6 }}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
-          <div><label style={S.label}>氏名</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={S.input} placeholder="例: 田中 太郎" /></div>
-          <div><label style={S.label}>役職</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={S.input} placeholder="例: 部長" /></div>
-          <div><label style={S.label}>部署</label>
-            <select value={form.department_id||""} onChange={e=>setForm(f=>({...f,department_id:e.target.value}))} style={S.input}>
+          <div><label style={ S.label }>氏名</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={ S.input } placeholder="例: 田中 太郎" /></div>
+          <div><label style={ S.label }>役職</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={ S.input } placeholder="例: 部長" /></div>
+          <div><label style={ S.label }>部署</label>
+            <select value={form.department_id||""} onChange={e=>setForm(f=>({...f,department_id:e.target.value}))} style={ S.input }>
               <option value="">（未選択）</option>
               {depts.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
-          <div><label style={S.label}>メール</label><input value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} style={S.input} placeholder="例: tanaka@example.com" /></div>
-          <div><label style={S.label}>電話</label><input value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} style={S.input} placeholder="例: 03-xxxx-xxxx" /></div>
-          <div><label style={S.label}>メモ</label><input value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} style={S.input} placeholder="関係性・特記事項など" /></div>
+          <div><label style={ S.label }>メール</label><input value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} style={ S.input } placeholder="例: tanaka@example.com" /></div>
+          <div><label style={ S.label }>電話</label><input value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} style={ S.input } placeholder="例: 03-xxxx-xxxx" /></div>
+          <div><label style={ S.label }>メモ</label><input value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} style={ S.input } placeholder="関係性・特記事項など" /></div>
         </div>
         <div style={{ display:"flex", justifyContent:"flex-end", gap:6 }}>
           <button onClick={onCancel} style={{ ...S.btn, padding:"4px 10px", background:"#334155", color:"#94a3b8", fontSize:11 }}>キャンセル</button>
@@ -984,18 +984,18 @@ const CompanyManager = ({ companies, departments, keyPersons, archivedCos, archi
       <div style={{ ...S.card, borderColor:"#2563eb" }}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
           <FormField label="企業名">
-            <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={S.input} placeholder="企業名" />
+            <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={ S.input } placeholder="企業名" />
           </FormField>
           <FormField label="優先度">
-            <select value={form.priority} onChange={e=>setForm(f=>({...f,priority:e.target.value}))} style={S.input}>
+            <select value={form.priority} onChange={e=>setForm(f=>({...f,priority:e.target.value}))} style={ S.input }>
               {["最重要","重要","通常"].map(p=><option key={p}>{p}</option>)}
             </select>
           </FormField>
           <FormField label="カテゴリ">
-            <input value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={S.input} placeholder="例: SI・クラウド" />
+            <input value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={ S.input } placeholder="例: SI・クラウド" />
           </FormField>
           <FormField label="単価帯目安">
-            <input value={form.unit_range} onChange={e=>setForm(f=>({...f,unit_range:e.target.value}))} style={S.input} placeholder="例: 60〜90万円/月" />
+            <input value={form.unit_range} onChange={e=>setForm(f=>({...f,unit_range:e.target.value}))} style={ S.input } placeholder="例: 60〜90万円/月" />
           </FormField>
         </div>
         <FormField label="備考・戦略メモ">
@@ -1183,57 +1183,51 @@ const CompanyManager = ({ companies, departments, keyPersons, archivedCos, archi
 
 // ── 候補者管理コンポーネント ─────────────────────────────────
 const CAND_STATUSES = ["推薦","面談","内定","稼働開始","見送り"];
-const CAND_STATUS_KEYS = { 推薦:"recommended", 面談:"interviewed", 内定:"offered", 稼働開始:"started", 見送り:"passed" };
-const CAND_COLORS = { 推薦:"#3b82f6", 面談:"#f59e0b", 内定:"#10b981", 稼働開始:"#8b5cf6", 見送り:"#475569" };
+const CAND_KEYS    = { 推薦:"recommended", 面談:"interviewed", 内定:"offered", 稼働開始:"started", 見送り:"passed" };
+const CAND_COLORS  = { 推薦:"#3b82f6", 面談:"#f59e0b", 内定:"#10b981", 稼働開始:"#8b5cf6", 見送り:"#475569" };
+
+const iStyle = { width:"100%", background:"#0f172a", border:"1px solid #334155", borderRadius:8, padding:"8px 12px", fontSize:13, color:"#f1f5f9", outline:"none" };
+const bStyle = { borderRadius:8, border:"none", cursor:"pointer", fontWeight:600 };
 
 const CandidateSection = ({ projectId, candidates, onRefresh }) => {
   const [newName, setNewName] = useState("");
-  const [adding, setAdding]   = useState(false);
-
+  const [adding,  setAdding]  = useState(false);
   const projCands = candidates.filter(c => c.project_id === projectId);
 
-  // カウント（累積方式：推薦=全員、面談=interviewed以上など）
   const counts = {
-    推薦:   projCands.filter(c=>c.recommended).length,
-    面談:   projCands.filter(c=>c.interviewed).length,
-    内定:   projCands.filter(c=>c.offered).length,
+    推薦:     projCands.filter(c=>c.recommended).length,
+    面談:     projCands.filter(c=>c.interviewed).length,
+    内定:     projCands.filter(c=>c.offered).length,
     稼働開始: projCands.filter(c=>c.started).length,
-    見送り: projCands.filter(c=>c.passed).length,
+    見送り:   projCands.filter(c=>c.passed).length,
   };
 
   const addCandidate = async () => {
     if (!newName.trim()) return;
     await supabase.from("project_candidates").insert([{
-      project_id: projectId,
-      name: newName.trim(),
+      project_id:  projectId,
+      name:        newName.trim(),
       recommended: true,
       interviewed: false,
-      offered: false,
-      started: false,
-      passed: false,
+      offered:     false,
+      started:     false,
+      passed:      false,
     }]);
-    setNewName(""); setAdding(false);
-    onRefresh();
+    setNewName(""); setAdding(false); onRefresh();
   };
 
   const toggleStatus = async (cand, statusKey) => {
-    const currentVal = cand[statusKey];
-    // 見送りは単独トグル
     if (statusKey === "passed") {
-      await supabase.from("project_candidates").update({ passed: !currentVal }).eq("id", cand.id);
+      await supabase.from("project_candidates").update({ passed: !cand.passed }).eq("id", cand.id);
       onRefresh(); return;
     }
-    // 推薦は常にtrue（最初のステータス）
     if (statusKey === "recommended") return;
-    // 累積方式：面談ON→面談・推薦がtrue、内定ON→内定・面談・推薦がtrue
     const order = ["recommended","interviewed","offered","started"];
-    const idx = order.indexOf(statusKey);
+    const idx   = order.indexOf(statusKey);
     const updates = {};
-    if (!currentVal) {
-      // ONにする：それ以下のステータスも全部ON
+    if (!cand[statusKey]) {
       order.slice(0, idx+1).forEach(k => updates[k] = true);
     } else {
-      // OFFにする：それ以上のステータスも全部OFF
       order.slice(idx).forEach(k => updates[k] = false);
     }
     await supabase.from("project_candidates").update(updates).eq("id", cand.id);
@@ -1247,32 +1241,32 @@ const CandidateSection = ({ projectId, candidates, onRefresh }) => {
 
   return (
     <div style={{ marginTop:14, borderTop:"1px solid #334155", paddingTop:12 }}>
-      {/* ステータス別カウント */}
-      <div style={{ display:"flex", gap:8, marginBottom:10, flexWrap:"wrap" }}>
+      <div style={{ display:"flex", gap:8, marginBottom:10, flexWrap:"wrap", alignItems:"center" }}>
         {CAND_STATUSES.map(s => (
-          <div key={s} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 10px", borderRadius:99, background:CAND_COLORS[s]+"22", border:`1px solid ${CAND_COLORS[s]}44` }}>
+          <div key={s} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 10px", borderRadius:99, background:CAND_COLORS[s]+"22", border:"1px solid "+CAND_COLORS[s]+"44" }}>
             <span style={{ fontSize:11, color:CAND_COLORS[s], fontWeight:600 }}>{s}</span>
             <span style={{ fontSize:13, fontWeight:700, color:CAND_COLORS[s] }}>{counts[s]}</span>
           </div>
         ))}
         <button onClick={()=>setAdding(true)}
-          style={{ padding:"3px 10px", borderRadius:8, border:"none", cursor:"pointer", background:"#2563eb", color:"#fff", fontSize:11, fontWeight:600, marginLeft:"auto" }}>
+          style={{ ...bStyle, padding:"4px 12px", background:"#2563eb", color:"#fff", fontSize:12, marginLeft:"auto" }}>
           ＋ 候補者を追加
         </button>
       </div>
 
-      {/* 候補者追加フォーム */}
       {adding && (
         <div style={{ display:"flex", gap:8, marginBottom:10 }}>
           <input value={newName} onChange={e=>setNewName(e.target.value)}
-            placeholder="推薦者名を入力" style={{ width:"100%", background:"#0f172a", border:"1px solid #334155", borderRadius:8, padding:"8px 12px", fontSize:13, color:"#f1f5f9", outline:"none", flex:1 }}
+            placeholder="推薦者名を入力"
+            style={{ ...iStyle, flex:1 }}
             onKeyDown={e=>e.key==="Enter"&&addCandidate()} autoFocus />
-          <button onClick={addCandidate} style={ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:600, background:"#2563eb", color:"#fff", fontSize:12 }>追加</button>
-          <button onClick={()=>setAdding(false)} style={ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:600, background:"#334155", color:"#94a3b8", fontSize:12 }>キャンセル</button>
+          <button onClick={addCandidate}
+            style={{ ...bStyle, padding:"8px 14px", background:"#2563eb", color:"#fff", fontSize:13 }}>追加</button>
+          <button onClick={()=>setAdding(false)}
+            style={{ ...bStyle, padding:"8px 14px", background:"#334155", color:"#94a3b8", fontSize:13 }}>キャンセル</button>
         </div>
       )}
 
-      {/* 候補者一覧 */}
       {projCands.length > 0 && (
         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
           <thead>
@@ -1289,20 +1283,14 @@ const CandidateSection = ({ projectId, candidates, onRefresh }) => {
               <tr key={c.id} style={{ borderBottom:"1px solid #1e293b" }}>
                 <td style={{ padding:"7px 8px", color:"#f1f5f9", fontWeight:600 }}>{c.name}</td>
                 {CAND_STATUSES.map(s => {
-                  const key = CAND_STATUS_KEYS[s];
-                  const isOn = c[key];
-                  const isFixed = s === "推薦"; // 推薦は常にtrue
+                  const key   = CAND_KEYS[s];
+                  const isOn  = c[key];
+                  const fixed = s === "推薦";
                   return (
                     <td key={s} style={{ textAlign:"center", padding:"7px 8px" }}>
-                      <div onClick={()=>!isFixed&&toggleStatus(c, key)}
-                        style={{
-                          width:22, height:22, borderRadius:6, margin:"0 auto",
-                          background: isOn ? CAND_COLORS[s] : "#334155",
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          fontSize:12, color:"#fff", cursor: isFixed?"default":"pointer",
-                          fontWeight:700, userSelect:"none",
-                        }}>
-                        {isOn ? "✓" : ""}
+                      <div onClick={()=>!fixed&&toggleStatus(c,key)}
+                        style={{ width:22, height:22, borderRadius:6, margin:"0 auto", background:isOn?CAND_COLORS[s]:"#334155", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, color:"#fff", cursor:fixed?"default":"pointer", fontWeight:700, userSelect:"none" }}>
+                        {isOn?"✓":""}
                       </div>
                     </td>
                   );
@@ -1316,7 +1304,7 @@ const CandidateSection = ({ projectId, candidates, onRefresh }) => {
           </tbody>
         </table>
       )}
-      {projCands.length === 0 && !adding && (
+      {projCands.length===0 && !adding && (
         <div style={{ fontSize:11, color:"#475569", textAlign:"center", padding:"8px 0" }}>候補者未登録</div>
       )}
     </div>
@@ -1434,22 +1422,22 @@ const ProjectView = ({ companies, departments, projects, candidates, onRefresh }
       {/* フィルター＋追加ボタン */}
       <div style={{ display:"flex", gap:10, marginBottom:14, flexWrap:"wrap", alignItems:"flex-end" }}>
         <div style={{ flex:1, minWidth:160 }}>
-          <label style={S.label}>企業</label>
-          <select value={filterCo} onChange={e=>{setFilterCo(e.target.value);setFilterDept("all");}} style={S.input}>
+          <label style={ S.label }>企業</label>
+          <select value={filterCo} onChange={e=>{setFilterCo(e.target.value);setFilterDept("all");}} style={ S.input }>
             <option value="all">全企業</option>
             {companies.map(c=><option key={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div style={{ flex:1, minWidth:160 }}>
-          <label style={S.label}>部署</label>
-          <select value={filterDept} onChange={e=>setFilterDept(e.target.value)} style={S.input}>
+          <label style={ S.label }>部署</label>
+          <select value={filterDept} onChange={e=>setFilterDept(e.target.value)} style={ S.input }>
             <option value="all">全部署</option>
             {listDepts.map(d=><option key={d.id}>{d.name}</option>)}
           </select>
         </div>
         <div style={{ minWidth:120 }}>
-          <label style={S.label}>ステータス</label>
-          <select value={filterSt} onChange={e=>setFilterSt(e.target.value)} style={S.input}>
+          <label style={ S.label }>ステータス</label>
+          <select value={filterSt} onChange={e=>setFilterSt(e.target.value)} style={ S.input }>
             <option value="all">全て</option>
             {PROJECT_STATUSES.map(s=><option key={s}>{s}</option>)}
           </select>
@@ -1530,7 +1518,7 @@ const ProjectView = ({ companies, departments, projects, candidates, onRefresh }
 
       {/* 登録・編集モーダル */}
       {showForm && (
-        <div style={S.modal} onClick={e=>e.target===e.currentTarget&&setShowForm(false)}>
+        <div style={ S.modal } onClick={e=>e.target===e.currentTarget&&setShowForm(false)}>
           <div style={{ ...S.mbox, width:640 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
               <div style={{ fontSize:15, fontWeight:700, color:"#f1f5f9" }}>{editProj?"案件を編集":"案件を追加"}</div>
@@ -1538,51 +1526,51 @@ const ProjectView = ({ companies, departments, projects, candidates, onRefresh }
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <div>
-                <label style={S.label}>企業名</label>
-                <select value={form.company_id} onChange={e=>setForm(f=>({...f,company_id:e.target.value,department_id:""}))} style={S.input}>
+                <label style={ S.label }>企業名</label>
+                <select value={form.company_id} onChange={e=>setForm(f=>({...f,company_id:e.target.value,department_id:""}))} style={ S.input }>
                   <option value="">選択してください</option>
                   {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
-                <label style={S.label}>部署名</label>
-                <select value={form.department_id} onChange={e=>setForm(f=>({...f,department_id:e.target.value}))} style={S.input}>
+                <label style={ S.label }>部署名</label>
+                <select value={form.department_id} onChange={e=>setForm(f=>({...f,department_id:e.target.value}))} style={ S.input }>
                   <option value="">（未選択）</option>
                   {filterDepts.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
               <div>
-                <label style={S.label}>案件受領日</label>
-                <input type="date" value={form.received_date} onChange={e=>setForm(f=>({...f,received_date:e.target.value}))} style={S.input} />
+                <label style={ S.label }>案件受領日</label>
+                <input type="date" value={form.received_date} onChange={e=>setForm(f=>({...f,received_date:e.target.value}))} style={ S.input } />
               </div>
               <div>
-                <label style={S.label}>ステータス</label>
-                <select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={S.input}>
+                <label style={ S.label }>ステータス</label>
+                <select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={ S.input }>
                   {PROJECT_STATUSES.map(s=><option key={s}>{s}</option>)}
                 </select>
               </div>
               <div style={{ gridColumn:"span 2" }}>
-                <label style={S.label}>案件名 *</label>
-                <input value={form.project_name} onChange={e=>setForm(f=>({...f,project_name:e.target.value}))} placeholder="例: Javaエンジニア募集（金融系基幹システム）" style={S.input} />
+                <label style={ S.label }>案件名 *</label>
+                <input value={form.project_name} onChange={e=>setForm(f=>({...f,project_name:e.target.value}))} placeholder="例: Javaエンジニア募集（金融系基幹システム）" style={ S.input } />
               </div>
               <div>
-                <label style={S.label}>勤務形態</label>
-                <select value={form.work_style} onChange={e=>setForm(f=>({...f,work_style:e.target.value}))} style={S.input}>
+                <label style={ S.label }>勤務形態</label>
+                <select value={form.work_style} onChange={e=>setForm(f=>({...f,work_style:e.target.value}))} style={ S.input }>
                   <option value="">選択</option>
                   {WORK_STYLES.map(w=><option key={w}>{w}</option>)}
                 </select>
               </div>
               <div>
-                <label style={S.label}>単価</label>
-                <input value={form.unit_price} onChange={e=>setForm(f=>({...f,unit_price:e.target.value}))} placeholder="例: 70〜85万円/月" style={S.input} />
+                <label style={ S.label }>単価</label>
+                <input value={form.unit_price} onChange={e=>setForm(f=>({...f,unit_price:e.target.value}))} placeholder="例: 70〜85万円/月" style={ S.input } />
               </div>
               <div>
-                <label style={S.label}>精算幅</label>
-                <input value={form.settlement_range} onChange={e=>setForm(f=>({...f,settlement_range:e.target.value}))} placeholder="例: 140〜180h" style={S.input} />
+                <label style={ S.label }>精算幅</label>
+                <input value={form.settlement_range} onChange={e=>setForm(f=>({...f,settlement_range:e.target.value}))} placeholder="例: 140〜180h" style={ S.input } />
               </div>
               <div>
-                <label style={S.label}>商流</label>
-                <input value={form.commercial_flow} onChange={e=>setForm(f=>({...f,commercial_flow:e.target.value}))} placeholder="例: 直請け / 1社挟み" style={S.input} />
+                <label style={ S.label }>商流</label>
+                <input value={form.commercial_flow} onChange={e=>setForm(f=>({...f,commercial_flow:e.target.value}))} placeholder="例: 直請け / 1社挟み" style={ S.input } />
               </div>
             </div>
             {[
@@ -1593,7 +1581,7 @@ const ProjectView = ({ companies, departments, projects, candidates, onRefresh }
               { key:"notes",            label:"その他備考",   ph:"補足情報・注意事項など..." },
             ].map(f2=>(
               <div key={f2.key} style={{ marginTop:10 }}>
-                <label style={S.label}>{f2.label}</label>
+                <label style={ S.label }>{f2.label}</label>
                 <textarea value={form[f2.key]} onChange={e=>setForm(f=>({...f,[f2.key]:e.target.value}))}
                   placeholder={f2.ph}
                   style={{ ...S.input, resize:"vertical", minHeight:70 }} />
@@ -1749,15 +1737,15 @@ const EngineerView = ({ companies, departments, engineers, archivedEngs, onRefre
       {/* フィルター＋追加ボタン */}
       <div style={{ display:"flex", gap:10, marginBottom:14, flexWrap:"wrap", alignItems:"flex-end" }}>
         <div style={{ flex:1, minWidth:160 }}>
-          <label style={S.label}>企業で絞り込み</label>
-          <select value={filterCo} onChange={e=>setFilterCo(e.target.value)} style={S.input}>
+          <label style={ S.label }>企業で絞り込み</label>
+          <select value={filterCo} onChange={e=>setFilterCo(e.target.value)} style={ S.input }>
             <option value="all">全企業</option>
             {companies.map(c=><option key={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div style={{ flex:1, minWidth:140 }}>
-          <label style={S.label}>ステータス</label>
-          <select value={filterSt} onChange={e=>setFilterSt(e.target.value)} style={S.input}>
+          <label style={ S.label }>ステータス</label>
+          <select value={filterSt} onChange={e=>setFilterSt(e.target.value)} style={ S.input }>
             <option value="all">全て</option>
             {STATUSES_ENG.map(s=><option key={s}>{s}</option>)}
           </select>
@@ -1852,7 +1840,7 @@ const EngineerView = ({ companies, departments, engineers, archivedEngs, onRefre
 
       {/* 追加・編集モーダル */}
       {showForm && (
-        <div style={S.modal} onClick={e=>e.target===e.currentTarget&&setShowForm(false)}>
+        <div style={ S.modal } onClick={e=>e.target===e.currentTarget&&setShowForm(false)}>
           <div style={{ ...S.mbox, width:560 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
               <div style={{ fontSize:15, fontWeight:700, color:"#f1f5f9" }}>{editEng?"稼働者を編集":"稼働者を追加"}</div>
@@ -1860,47 +1848,47 @@ const EngineerView = ({ companies, departments, engineers, archivedEngs, onRefre
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <div style={{ gridColumn:"span 2" }}>
-                <label style={S.label}>名前 *</label>
-                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="例: 田中 太郎" style={S.input} />
+                <label style={ S.label }>名前 *</label>
+                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="例: 田中 太郎" style={ S.input } />
               </div>
               <div>
-                <label style={S.label}>企業名</label>
-                <select value={form.company_id} onChange={e=>setForm(f=>({...f,company_id:e.target.value,department_id:""}))} style={S.input}>
+                <label style={ S.label }>企業名</label>
+                <select value={form.company_id} onChange={e=>setForm(f=>({...f,company_id:e.target.value,department_id:""}))} style={ S.input }>
                   <option value="">選択してください</option>
                   {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
-                <label style={S.label}>部署名</label>
-                <select value={form.department_id} onChange={e=>setForm(f=>({...f,department_id:e.target.value}))} style={S.input}>
+                <label style={ S.label }>部署名</label>
+                <select value={form.department_id} onChange={e=>setForm(f=>({...f,department_id:e.target.value}))} style={ S.input }>
                   <option value="">（未選択）</option>
                   {filteredDepts.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
               <div>
-                <label style={S.label}>ステータス</label>
-                <select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={S.input}>
+                <label style={ S.label }>ステータス</label>
+                <select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={ S.input }>
                   {STATUSES_ENG.map(s=><option key={s}>{s}</option>)}
                 </select>
               </div>
               <div>
-                <label style={S.label}>単価（万円）</label>
-                <input type="number" min="0" value={form.unit_price} onChange={e=>setForm(f=>({...f,unit_price:e.target.value}))} placeholder="例: 75" style={S.input} />
+                <label style={ S.label }>単価（万円）</label>
+                <input type="number" min="0" value={form.unit_price} onChange={e=>setForm(f=>({...f,unit_price:e.target.value}))} placeholder="例: 75" style={ S.input } />
               </div>
               <div>
-                <label style={S.label}>稼働開始日</label>
-                <input type="date" value={form.start_date} onChange={e=>setForm(f=>({...f,start_date:e.target.value}))} style={S.input} />
+                <label style={ S.label }>稼働開始日</label>
+                <input type="date" value={form.start_date} onChange={e=>setForm(f=>({...f,start_date:e.target.value}))} style={ S.input } />
               </div>
               <div>
-                <label style={S.label}>稼働終了日</label>
-                <input type="date" value={form.end_date} onChange={e=>setForm(f=>({...f,end_date:e.target.value}))} style={S.input} />
+                <label style={ S.label }>稼働終了日</label>
+                <input type="date" value={form.end_date} onChange={e=>setForm(f=>({...f,end_date:e.target.value}))} style={ S.input } />
               </div>
               <div style={{ gridColumn:"span 2" }}>
-                <label style={S.label}>契約更新日</label>
-                <input type="date" value={form.contract_renewal_date} onChange={e=>setForm(f=>({...f,contract_renewal_date:e.target.value}))} style={S.input} />
+                <label style={ S.label }>契約更新日</label>
+                <input type="date" value={form.contract_renewal_date} onChange={e=>setForm(f=>({...f,contract_renewal_date:e.target.value}))} style={ S.input } />
               </div>
               <div style={{ gridColumn:"span 2" }}>
-                <label style={S.label}>備考</label>
+                <label style={ S.label }>備考</label>
                 <textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="スキル・特記事項など" style={{ ...S.input, resize:"vertical", minHeight:60 }} />
               </div>
             </div>
@@ -1948,8 +1936,8 @@ const StrategyView = ({ companies, strategies, onRefresh }) => {
     <div>
       <div style={{ ...S.card, display:"flex", alignItems:"center", gap:12, marginBottom:16, flexWrap:"wrap" }}>
         <div style={{ flex:1, minWidth:200 }}>
-          <label style={S.label}>企業を選択</label>
-          <select value={selectedCo} onChange={e=>setSelectedCo(e.target.value)} style={S.input}>
+          <label style={ S.label }>企業を選択</label>
+          <select value={selectedCo} onChange={e=>setSelectedCo(e.target.value)} style={ S.input }>
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
@@ -1969,7 +1957,7 @@ const StrategyView = ({ companies, strategies, onRefresh }) => {
           { key:"job_openings", label:"現在の求人情報", ph:"現在募集中のポジション、スキル要件、単価感などを記載..." },
           { key:"target_depts", label:"アプローチ対象部署・担当者情報", ph:"キーパーソン、部署名、アポイントの状況などを記載..." },
         ].map(f => (
-          <div key={f.key} style={S.card}>
+          <div key={f.key} style={ S.card }>
             <div style={{ fontSize:13, fontWeight:600, color:"#f1f5f9", marginBottom:8 }}>{f.label}</div>
             <textarea value={form[f.key]} onChange={e=>setForm(fm=>({...fm,[f.key]:e.target.value}))}
               placeholder={f.ph}
@@ -2036,13 +2024,13 @@ const LogModal = ({ companies, departments, keyPersons, onClose, onSave }) => {
 
         {/* 行1: 企業名・部署名 */}
         <FormField label="企業名">
-          <select value={form.company} onChange={e=>update("company",e.target.value)} style={S.input}>
+          <select value={form.company} onChange={e=>update("company",e.target.value)} style={ S.input }>
             <option value="">選択してください</option>
             {companies.map(c=><option key={c.id}>{c.name}</option>)}
           </select>
         </FormField>
         <FormField label="部署名">
-          <select value={form.department} onChange={e=>update("department",e.target.value)} style={S.input}>
+          <select value={form.department} onChange={e=>update("department",e.target.value)} style={ S.input }>
             <option value="">（未選択）</option>
             {depts.map(d=><option key={d.id}>{d.name}</option>)}
           </select>
@@ -2051,38 +2039,38 @@ const LogModal = ({ companies, departments, keyPersons, onClose, onSave }) => {
         {/* 行2: 先方担当者名・自分の担当者名 */}
         <FormField label="先方担当者名（営業先）">
           <input value={form.partner_name} onChange={e=>update("partner_name",e.target.value)}
-            placeholder="例: 田中 部長" style={S.input} />
+            placeholder="例: 田中 部長" style={ S.input } />
         </FormField>
         <FormField label="自社担当者名">
           <input value={form.person} onChange={e=>update("person",e.target.value)}
-            placeholder="例: 益子" style={S.input} />
+            placeholder="例: 益子" style={ S.input } />
         </FormField>
 
         {/* 行3: 活動日・活動種別 */}
         <FormField label="活動日">
-          <input type="date" value={form.date} onChange={e=>update("date",e.target.value)} style={S.input} />
+          <input type="date" value={form.date} onChange={e=>update("date",e.target.value)} style={ S.input } />
         </FormField>
         <FormField label="活動種別">
-          <select value={form.activity_type} onChange={e=>update("activity_type",e.target.value)} style={S.input}>
+          <select value={form.activity_type} onChange={e=>update("activity_type",e.target.value)} style={ S.input }>
             {ACT_TYPES.map(t=><option key={t}>{t}</option>)}
           </select>
         </FormField>
 
         {/* 行4: フェーズ・ステータス */}
         <FormField label="フェーズ">
-          <select value={form.phase} onChange={e=>update("phase",e.target.value)} style={S.input}>
+          <select value={form.phase} onChange={e=>update("phase",e.target.value)} style={ S.input }>
             {PHASES.map(p=><option key={p}>{p}</option>)}
           </select>
         </FormField>
         <FormField label="ステータス">
-          <select value={form.status} onChange={e=>update("status",e.target.value)} style={S.input}>
+          <select value={form.status} onChange={e=>update("status",e.target.value)} style={ S.input }>
             {STATUSES.map(s=><option key={s}>{s}</option>)}
           </select>
         </FormField>
 
         {/* 行5: 受注確度（1列） */}
         <FormField label="受注確度">
-          <select value={form.probability} onChange={e=>update("probability",e.target.value)} style={S.input}>
+          <select value={form.probability} onChange={e=>update("probability",e.target.value)} style={ S.input }>
             {PROBS.map(p=><option key={p}>{p}</option>)}
           </select>
         </FormField>
@@ -2103,7 +2091,7 @@ const LogModal = ({ companies, departments, keyPersons, onClose, onSave }) => {
       <div style={{ marginTop:10, display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
         <FormField label="次回アクション">
           <input value={form.next_action} onChange={e=>update("next_action",e.target.value)}
-            placeholder="例: 候補者プロフィールを送付する" style={S.input} />
+            placeholder="例: 候補者プロフィールを送付する" style={ S.input } />
         </FormField>
         <FormField label="次回アクション期日 🗓">
           <input type="date" value={form.next_action_date} onChange={e=>update("next_action_date",e.target.value)}
@@ -2417,7 +2405,7 @@ export default function App() {
       </div>
 
       {/* メインコンテンツ */}
-      <div style={S.main}>
+      <div style={ S.main }>
         <div style={{ ...S.topbar, background:theme.bgTopbar, borderBottom:"1px solid "+theme.border }}>
           <div style={{ fontSize:18, fontWeight:700, letterSpacing:"-0.3px" }}>
             {TABS.find(t=>t.id===tab)?.label}
