@@ -446,14 +446,33 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
               </div>
               {qi===0 && <div style={{ marginLeft:"auto", fontSize:9, background:"#2563eb", color:"#fff", padding:"2px 8px", borderRadius:99, fontWeight:700 }}>進行中</div>}
             </div>
-            {KPI_ROWS.map(k => {
-              const a = getActsByQ(qi)[k.name]||0;
-              const p = pct(a, k.tgts[qi]);
+            {["稼働件数","面談実施数","候補提示数","顧問アポ数","案件数"].map(kname => {
+              const a   = getActsByQ(qi)[kname]||0;
+              const tgt = getTgt(qi, kname);
+              const p   = pct(a, tgt);
+              const isEd = editingKpi?.qi===qi && editingKpi?.name===kname;
               return (
-                <div key={k.name} style={{ marginBottom:10 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, marginBottom:3 }}>
-                    <span style={{ color:"#94a3b8" }}>{k.name}</span>
-                    <span style={{ fontWeight:700, color:pctColor(p) }}>{a} / {Math.round(k.tgts[qi])}</span>
+                <div key={kname} style={{ marginBottom:10 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, marginBottom:3, alignItems:"center" }}>
+                    <span style={{ color:"#94a3b8" }}>{kname}</span>
+                    {isEd ? (
+                      <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                        <input type="number" min="0" value={kpiEditVal}
+                          onChange={e=>setKpiEditVal(e.target.value)}
+                          style={{ ...S.input, width:64, padding:"2px 6px", fontSize:11, textAlign:"center" }}
+                          autoFocus onKeyDown={e=>e.key==="Enter"&&saveKpiTarget(qi,kname,kpiEditVal)} />
+                        <button onClick={()=>saveKpiTarget(qi,kname,kpiEditVal)}
+                          style={{ ...S.btn, padding:"2px 8px", background:"#2563eb", color:"#fff", fontSize:10 }}>保存</button>
+                        <button onClick={()=>setEditingKpi(null)}
+                          style={{ ...S.btn, padding:"2px 6px", background:"#334155", color:"#94a3b8", fontSize:10 }}>✕</button>
+                      </div>
+                    ) : (
+                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        <span style={{ fontWeight:700, color:pctColor(p) }}>{a} / {tgt}</span>
+                        <span onClick={()=>{ setEditingKpi({qi,name:kname}); setKpiEditVal(String(tgt)); }}
+                          style={{ cursor:"pointer", fontSize:12, opacity:0.6 }} title="目標値を編集">✏️</span>
+                      </div>
+                    )}
                   </div>
                   <div style={{ height:5, background:"#334155", borderRadius:99, overflow:"hidden" }}>
                     <div style={{ width:`${p}%`, height:"100%", background:pctColor(p), borderRadius:99 }} />
