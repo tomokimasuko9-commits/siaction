@@ -1256,7 +1256,7 @@ const CandidateSection = ({ projectId, candidates, onRefresh }) => {
           </div>
         ))}
         <button onClick={()=>setAdding(true)}
-          style={ ...{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:600 }, padding:"3px 10px", background:"#2563eb", color:"#fff", fontSize:11, marginLeft:"auto" }}>
+          style={{ padding:"3px 10px", borderRadius:8, border:"none", cursor:"pointer", background:"#2563eb", color:"#fff", fontSize:11, fontWeight:600, marginLeft:"auto" }}>
           ＋ 候補者を追加
         </button>
       </div>
@@ -1265,10 +1265,10 @@ const CandidateSection = ({ projectId, candidates, onRefresh }) => {
       {adding && (
         <div style={{ display:"flex", gap:8, marginBottom:10 }}>
           <input value={newName} onChange={e=>setNewName(e.target.value)}
-            placeholder="推薦者名を入力" style={ ...{ width:"100%", background:"#0f172a", border:"1px solid #334155", borderRadius:8, padding:"8px 12px", fontSize:13, color:"#f1f5f9", outline:"none" }, flex:1 }
+            placeholder="推薦者名を入力" style={{ width:"100%", background:"#0f172a", border:"1px solid #334155", borderRadius:8, padding:"8px 12px", fontSize:13, color:"#f1f5f9", outline:"none", flex:1 }}
             onKeyDown={e=>e.key==="Enter"&&addCandidate()} autoFocus />
-          <button onClick={addCandidate} style={ ...{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:600 }, background:"#2563eb", color:"#fff", fontSize:12 }>追加</button>
-          <button onClick={()=>setAdding(false)} style={ ...{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:600 }, background:"#334155", color:"#94a3b8", fontSize:12 }>キャンセル</button>
+          <button onClick={addCandidate} style={ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:600, background:"#2563eb", color:"#fff", fontSize:12 }>追加</button>
+          <button onClick={()=>setAdding(false)} style={ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:600, background:"#334155", color:"#94a3b8", fontSize:12 }>キャンセル</button>
         </div>
       )}
 
