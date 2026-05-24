@@ -200,7 +200,7 @@ const Dashboard = ({ companies, departments, logs, onRefresh }) => {
                     </div>
                     <div style={{ flex:1 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
-                        <span style={{ fontSize:13, fontWeight:600, color:"#f1f5f9" }}>{l.company?.replace("株式会社","").replace("合同会社","").trim()}</span>
+                        <span style={{ fontSize:14, fontWeight:700, color:"#f1f5f9" }}>{l.company?.replace("株式会社","").replace("合同会社","").trim()}</span>
                         {l.department && <span style={{ fontSize:11, color:"#94a3b8" }}>{l.department}</span>}
                         <Tag phase={l.phase} />
                       </div>
@@ -239,7 +239,7 @@ const Dashboard = ({ companies, departments, logs, onRefresh }) => {
                     </div>
                     <div style={{ flex:1 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
-                        <span style={{ fontSize:13, fontWeight:600, color:"#f1f5f9" }}>{l.company?.replace("株式会社","").replace("合同会社","").trim()}</span>
+                        <span style={{ fontSize:14, fontWeight:700, color:"#f1f5f9" }}>{l.company?.replace("株式会社","").replace("合同会社","").trim()}</span>
                         {l.department && <span style={{ fontSize:11, color:"#94a3b8" }}>{l.department}</span>}
                         <Tag phase={l.phase} />
                       </div>
@@ -692,64 +692,97 @@ const SummaryView = ({ companies, salesProcess, onUpdateProcess }) => {
 
 // ── 活動ログ ────────────────────────────────────────────────
 const LogView = ({ logs, companies, departments, loading }) => {
-  const [filterCo,   setFilterCo]   = useState("all");
-  const [filterDept, setFilterDept] = useState("all");
+  const [expanded,     setExpanded]     = useState({});
+  const [expandedDept, setExpandedDept] = useState({});
+  const [filterStatus, setFilterStatus] = useState("all");
 
-  const filteredLogs = logs.filter(l => {
-    if (filterCo   !== "all" && l.company    !== filterCo)   return false;
-    if (filterDept !== "all" && l.department !== filterDept) return false;
-    return true;
+  const grouped = {};
+  logs.forEach(l => {
+    if (filterStatus !== "all" && l.status !== filterStatus) return;
+    const coName   = l.company    || "未設定";
+    const deptName = l.department || "部署未設定";
+    if (!grouped[coName]) grouped[coName] = {};
+    if (!grouped[coName][deptName]) grouped[coName][deptName] = [];
+    grouped[coName][deptName].push(l);
   });
 
-  const depts = filterCo === "all"
-    ? departments
-    : departments.filter(d => {
-        const co = companies.find(c => c.name === filterCo);
-        return co && d.company_id === co.id;
-      });
+  const totalCount = Object.values(grouped).reduce((s, dm) =>
+    s + Object.values(dm).reduce((s2, ls) => s2 + ls.length, 0), 0);
 
   return (
     <div>
-      <div style={{ display:"flex", gap:10, marginBottom:14, flexWrap:"wrap" }}>
-        <div style={{ flex:1, minWidth:160 }}>
-          <label style={ S.label }>企業で絞り込み</label>
-          <select value={filterCo} onChange={e => { setFilterCo(e.target.value); setFilterDept("all"); }}
-            style={ S.input }>
-            <option value="all">全企業</option>
-            {companies.map(c => <option key={c.id}>{c.name}</option>)}
+      <div style={{ display:"flex", gap:10, marginBottom:14, alignItems:"flex-end" }}>
+        <div style={{ minWidth:140 }}>
+          <label style={S.label}>ステータス絞り込み</label>
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={S.input}>
+            <option value="all">全て</option>
+            {["未着手","進行中","完了","保留","見送り"].map(s => <option key={s}>{s}</option>)}
           </select>
         </div>
-        <div style={{ flex:1, minWidth:160 }}>
-          <label style={ S.label }>部署で絞り込み</label>
-          <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={ S.input }>
-            <option value="all">全部署</option>
-            {depts.map(d => <option key={d.id}>{d.name}</option>)}
-          </select>
-        </div>
+        <div style={{ fontSize:12, color:"#64748b" }}>{totalCount}件</div>
       </div>
-      <div style={{ fontSize:12, color:"#64748b", marginBottom:12 }}>{filteredLogs.length}件</div>
-      {loading ? <Spinner /> : filteredLogs.map(l => (
-        <div key={l.id} style={{ ...S.card, display:"flex", gap:14, padding:"12px 16px" }}>
-          <div style={{ minWidth:50, fontSize:11, color:"#475569", paddingTop:2 }}>{l.date?.slice(5)}</div>
-          <div style={{ flex:1 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
-              <span style={{ fontSize:13, fontWeight:600, color:"#f1f5f9" }}>{l.company}</span>
-              {l.department && <span style={{ fontSize:11, color:"#64748b" }}>{l.department}</span>}
+
+      {loading ? <Spinner /> : Object.entries(grouped).map(([coName, deptMap]) => {
+        const isOpen  = expanded[coName] !== false;
+        const coTotal = Object.values(deptMap).reduce((s, ls) => s + ls.length, 0);
+        return (
+          <div key={coName} style={{ marginBottom:12 }}>
+            <div onClick={() => setExpanded(e => ({ ...e, [coName]: !isOpen }))}
+              style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background:"#1e293b", border:"1px solid #334155", borderRadius: isOpen ? "10px 10px 0 0" : 10, cursor:"pointer" }}>
+              <span style={{ fontSize:14 }}>{isOpen ? "▼" : "▶"}</span>
+              <span style={{ flex:1, fontSize:14, fontWeight:700, color:"#f1f5f9" }}>🏢 {coName}</span>
+              <span style={{ fontSize:12, color:"#64748b", background:"#334155", padding:"2px 10px", borderRadius:99 }}>{coTotal}件</span>
             </div>
-            <div style={{ fontSize:12, color:"#94a3b8", marginBottom:2 }}>{l.activity_type}{l.person ? "  · " + l.person : ""}</div>
-            {l.memo && <div style={{ fontSize:11, color:"#475569" }}>{l.memo}</div>}
-            <div style={{ display:"flex", gap:5, marginTop:5, flexWrap:"wrap" }}>
-              <Tag phase={l.phase} />
-              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:99, background:"#334155", color:"#94a3b8" }}>{l.status}</span>
-              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:99, background:"#334155", color:"#94a3b8" }}>{l.probability}</span>
-            </div>
+            {isOpen && (
+              <div style={{ border:"1px solid #334155", borderTop:"none", borderRadius:"0 0 10px 10px", overflow:"hidden" }}>
+                {Object.entries(deptMap).map(([deptName, deptLogs]) => {
+                  const dkey      = coName + "_" + deptName;
+                  const isDeptOpen = expandedDept[dkey] !== false;
+                  return (
+                    <div key={deptName} style={{ borderBottom:"1px solid #334155" }}>
+                      <div onClick={() => setExpandedDept(e => ({ ...e, [dkey]: !isDeptOpen }))}
+                        style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px 8px 28px", background:"#162032", cursor:"pointer" }}>
+                        <span style={{ fontSize:12, color:"#64748b" }}>{isDeptOpen ? "▼" : "▶"}</span>
+                        <span style={{ flex:1, fontSize:12, fontWeight:600, color:"#94a3b8" }}>└ {deptName}</span>
+                        <span style={{ fontSize:11, color:"#475569" }}>{deptLogs.length}件</span>
+                      </div>
+                      {isDeptOpen && deptLogs.map(l => (
+                        <div key={l.id} style={{ display:"flex", gap:14, padding:"10px 16px 10px 40px", borderTop:"1px solid #1e293b", background:"#0f172a" }}>
+                          <div style={{ minWidth:50, fontSize:11, color:"#64748b", paddingTop:2 }}>{l.date?.slice(5)}</div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:13, fontWeight:600, color:"#cbd5e1", marginBottom:2 }}>
+                              {l.activity_type}
+                              {l.person && <span style={{ fontSize:11, color:"#64748b", marginLeft:8 }}>· {l.person}</span>}
+                            </div>
+                            {l.memo && <div style={{ fontSize:12, color:"#e2e8f0", lineHeight:1.6 }}>{l.memo}</div>}
+                            {l.next_action && (
+                              <div style={{ fontSize:11, color:"#7dd3fc", marginTop:3 }}>
+                                📌 {l.next_action}
+                                {l.next_action_date && <span style={{ color:"#64748b", marginLeft:6 }}>({l.next_action_date.slice(5)})</span>}
+                              </div>
+                            )}
+                            <div style={{ display:"flex", gap:5, marginTop:5, flexWrap:"wrap" }}>
+                              <Tag phase={l.phase} />
+                              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:99, background:"#334155", color:"#94a3b8" }}>{l.status}</span>
+                              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:99, background:"#334155", color:"#94a3b8" }}>{l.probability}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
+      {totalCount === 0 && !loading && (
+        <div style={{ textAlign:"center", padding:40, color:"#475569" }}>活動記録がありません</div>
+      )}
     </div>
   );
 };
-
 // ── ヒアリングシート ────────────────────────────────────────
 const HearingView = ({ companies, departments, keyPersons, hearingData, onSaveHearing, onSaveLog }) => {
   const [coId,    setCoId]    = useState(companies[0]?.id || "");
@@ -1183,52 +1216,46 @@ const CompanyManager = ({ companies, departments, keyPersons, archivedCos, archi
 
 // ── 候補者管理コンポーネント ─────────────────────────────────
 const CAND_STATUSES = ["推薦","面談","内定","稼働開始","見送り"];
-const CAND_KEYS    = { 推薦:"recommended", 面談:"interviewed", 内定:"offered", 稼働開始:"started", 見送り:"passed" };
-const CAND_COLORS  = { 推薦:"#3b82f6", 面談:"#f59e0b", 内定:"#10b981", 稼働開始:"#8b5cf6", 見送り:"#475569" };
-
-const iStyle = { width:"100%", background:"#0f172a", border:"1px solid #334155", borderRadius:8, padding:"8px 12px", fontSize:13, color:"#f1f5f9", outline:"none" };
-const bStyle = { borderRadius:8, border:"none", cursor:"pointer", fontWeight:600 };
+const CAND_KEYS    = { "推薦":"recommended", "面談":"interviewed", "内定":"offered", "稼働開始":"started", "見送り":"passed" };
+const CAND_COLORS  = { "推薦":"#3b82f6", "面談":"#f59e0b", "内定":"#10b981", "稼働開始":"#8b5cf6", "見送り":"#475569" };
 
 const CandidateSection = ({ projectId, candidates, onRefresh }) => {
-  const [newName, setNewName] = useState("");
-  const [adding,  setAdding]  = useState(false);
+  const [newName, setNewName] = React.useState("");
+  const [adding,  setAdding]  = React.useState(false);
+
   const projCands = candidates.filter(c => c.project_id === projectId);
 
-  const counts = {
-    推薦:     projCands.filter(c=>c.recommended).length,
-    面談:     projCands.filter(c=>c.interviewed).length,
-    内定:     projCands.filter(c=>c.offered).length,
-    稼働開始: projCands.filter(c=>c.started).length,
-    見送り:   projCands.filter(c=>c.passed).length,
-  };
+  const counts = {};
+  CAND_STATUSES.forEach(s => {
+    counts[s] = projCands.filter(c => c[CAND_KEYS[s]]).length;
+  });
 
   const addCandidate = async () => {
     if (!newName.trim()) return;
     await supabase.from("project_candidates").insert([{
-      project_id:  projectId,
-      name:        newName.trim(),
-      recommended: true,
-      interviewed: false,
-      offered:     false,
-      started:     false,
-      passed:      false,
+      project_id: projectId, name: newName.trim(),
+      recommended: true, interviewed: false,
+      offered: false, started: false, passed: false,
     }]);
-    setNewName(""); setAdding(false); onRefresh();
+    setNewName("");
+    setAdding(false);
+    onRefresh();
   };
 
   const toggleStatus = async (cand, statusKey) => {
     if (statusKey === "passed") {
       await supabase.from("project_candidates").update({ passed: !cand.passed }).eq("id", cand.id);
-      onRefresh(); return;
+      onRefresh();
+      return;
     }
     if (statusKey === "recommended") return;
     const order = ["recommended","interviewed","offered","started"];
-    const idx   = order.indexOf(statusKey);
+    const idx = order.indexOf(statusKey);
     const updates = {};
     if (!cand[statusKey]) {
-      order.slice(0, idx+1).forEach(k => updates[k] = true);
+      order.slice(0, idx+1).forEach(k => { updates[k] = true; });
     } else {
-      order.slice(idx).forEach(k => updates[k] = false);
+      order.slice(idx).forEach(k => { updates[k] = false; });
     }
     await supabase.from("project_candidates").update(updates).eq("id", cand.id);
     onRefresh();
@@ -1239,77 +1266,143 @@ const CandidateSection = ({ projectId, candidates, onRefresh }) => {
     onRefresh();
   };
 
+  const inputStyle = {
+    flex: 1,
+    background: "#0f172a",
+    border: "1px solid #334155",
+    borderRadius: 8,
+    padding: "8px 12px",
+    fontSize: 13,
+    color: "#f1f5f9",
+    outline: "none",
+  };
+
+  const btnStyle = (bg, color) => ({
+    padding: "8px 16px",
+    borderRadius: 8,
+    border: "none",
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 600,
+    background: bg,
+    color: color,
+  });
+
+  const DATE_KEYS = { "推薦":"recommended_date", "面談":"interviewed_date", "内定":"offered_date", "稼働開始":"started_date", "見送り":"passed_date" };
+  const [editDateId, setEditDateId] = React.useState(null); // {id, status}
+
+  const saveDate = async (candId, statusKey, dateVal) => {
+    const updateData = {};
+    updateData[statusKey] = dateVal || null;
+    await supabase.from("project_candidates").update(updateData).eq("id", candId);
+    setEditDateId(null);
+    onRefresh();
+  };
+
   return (
-    <div style={{ marginTop:14, borderTop:"1px solid #334155", paddingTop:12 }}>
-      <div style={{ display:"flex", gap:8, marginBottom:10, flexWrap:"wrap", alignItems:"center" }}>
+    <div style={{ marginTop: 14, borderTop: "1px solid #334155", paddingTop: 12 }} onClick={e => e.stopPropagation()}>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
         {CAND_STATUSES.map(s => (
-          <div key={s} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 10px", borderRadius:99, background:CAND_COLORS[s]+"22", border:"1px solid "+CAND_COLORS[s]+"44" }}>
-            <span style={{ fontSize:11, color:CAND_COLORS[s], fontWeight:600 }}>{s}</span>
-            <span style={{ fontSize:13, fontWeight:700, color:CAND_COLORS[s] }}>{counts[s]}</span>
+          <div key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 99, background: CAND_COLORS[s] + "22", border: "1px solid " + CAND_COLORS[s] + "44" }}>
+            <span style={{ fontSize: 11, color: CAND_COLORS[s], fontWeight: 600 }}>{s}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: CAND_COLORS[s] }}>{counts[s]}</span>
           </div>
         ))}
-        <button onClick={()=>setAdding(true)}
-          style={{ ...bStyle, padding:"4px 12px", background:"#2563eb", color:"#fff", fontSize:12, marginLeft:"auto" }}>
+        <button
+          onClick={e => { e.stopPropagation(); setAdding(true); }}
+          style={{ padding: "6px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, background: "#2563eb", color: "#fff", marginLeft: "auto" }}
+        >
           ＋ 候補者を追加
         </button>
       </div>
 
-      {adding && (
-        <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-          <input value={newName} onChange={e=>setNewName(e.target.value)}
+      {adding === true && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <input
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onClick={e => e.stopPropagation()}
             placeholder="推薦者名を入力"
-            style={{ ...iStyle, flex:1 }}
-            onKeyDown={e=>e.key==="Enter"&&addCandidate()} autoFocus />
-          <button onClick={addCandidate}
-            style={{ ...bStyle, padding:"8px 14px", background:"#2563eb", color:"#fff", fontSize:13 }}>追加</button>
-          <button onClick={()=>setAdding(false)}
-            style={{ ...bStyle, padding:"8px 14px", background:"#334155", color:"#94a3b8", fontSize:13 }}>キャンセル</button>
+            style={inputStyle}
+            onKeyDown={e => { e.stopPropagation(); if (e.key === "Enter") addCandidate(); }}
+            autoFocus
+          />
+          <button onClick={e => { e.stopPropagation(); addCandidate(); }} style={btnStyle("#2563eb", "#fff")}>追加</button>
+          <button onClick={e => { e.stopPropagation(); setAdding(false); setNewName(""); }} style={btnStyle("#334155", "#94a3b8")}>キャンセル</button>
         </div>
       )}
 
       {projCands.length > 0 && (
-        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
-            <tr style={{ borderBottom:"1px solid #334155" }}>
-              <th style={{ padding:"5px 8px", color:"#64748b", textAlign:"left", fontWeight:600 }}>推薦者名</th>
-              {CAND_STATUSES.map(s=>(
-                <th key={s} style={{ padding:"5px 8px", color:CAND_COLORS[s], textAlign:"center", fontWeight:600, whiteSpace:"nowrap" }}>{s}</th>
+            <tr style={{ borderBottom: "1px solid #334155" }}>
+              <th style={{ padding: "5px 8px", color: "#64748b", textAlign: "left", fontWeight: 600 }}>推薦者名</th>
+              {CAND_STATUSES.map(s => (
+                <th key={s} style={{ padding: "5px 8px", color: CAND_COLORS[s], textAlign: "center", fontWeight: 600, whiteSpace: "nowrap" }}>{s}</th>
               ))}
-              <th style={{ width:40 }}></th>
+              <th style={{ width: 40 }}></th>
             </tr>
           </thead>
           <tbody>
             {projCands.map(c => (
-              <tr key={c.id} style={{ borderBottom:"1px solid #1e293b" }}>
-                <td style={{ padding:"7px 8px", color:"#f1f5f9", fontWeight:600 }}>{c.name}</td>
+              <tr key={c.id} style={{ borderBottom: "1px solid #1e293b" }}>
+                <td style={{ padding: "7px 8px", color: "#f1f5f9", fontWeight: 600 }}>{c.name}</td>
                 {CAND_STATUSES.map(s => {
-                  const key   = CAND_KEYS[s];
-                  const isOn  = c[key];
-                  const fixed = s === "推薦";
+                  const key     = CAND_KEYS[s];
+                  const dateKey = DATE_KEYS[s];
+                  const isOn    = c[key];
+                  const fixed   = s === "推薦";
+                  const dateVal = c[dateKey];
+                  const isEditingDate = editDateId?.id === c.id && editDateId?.status === s;
                   return (
-                    <td key={s} style={{ textAlign:"center", padding:"7px 8px" }}>
-                      <div onClick={()=>!fixed&&toggleStatus(c,key)}
-                        style={{ width:22, height:22, borderRadius:6, margin:"0 auto", background:isOn?CAND_COLORS[s]:"#334155", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, color:"#fff", cursor:fixed?"default":"pointer", fontWeight:700, userSelect:"none" }}>
-                        {isOn?"✓":""}
+                    <td key={s} style={{ textAlign: "center", padding: "5px 6px", minWidth: 70 }}>
+                      <div
+                        onClick={() => { if (!fixed) toggleStatus(c, key); }}
+                        style={{ width: 22, height: 22, borderRadius: 6, margin: "0 auto 3px", background: isOn ? CAND_COLORS[s] : "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", cursor: fixed ? "default" : "pointer", fontWeight: 700, userSelect: "none" }}
+                      >
+                        {isOn ? "✓" : ""}
                       </div>
+                      {isOn && (
+                        isEditingDate ? (
+                          <input
+                            type="date"
+                            defaultValue={dateVal || ""}
+                            onClick={e => e.stopPropagation()}
+                            onChange={e => saveDate(c.id, dateKey, e.target.value)}
+                            onBlur={() => setEditDateId(null)}
+                            autoFocus
+                            style={{ width: 110, background: "#0f172a", border: "1px solid #334155", borderRadius: 4, padding: "2px 4px", fontSize: 10, color: "#f1f5f9", outline: "none" }}
+                          />
+                        ) : (
+                          <div
+                            onClick={e => { e.stopPropagation(); setEditDateId({ id: c.id, status: s }); }}
+                            style={{ fontSize: 10, color: dateVal ? "#94a3b8" : "#475569", cursor: "pointer", textAlign: "center" }}
+                            title="クリックで日付を入力"
+                          >
+                            {dateVal ? dateVal.slice(5) : "日付+"}
+                          </div>
+                        )
+                      )}
                     </td>
                   );
                 })}
-                <td style={{ textAlign:"center", padding:"4px" }}>
-                  <button onClick={()=>deleteCandidate(c.id)}
-                    style={{ background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:14 }}>×</button>
+                <td style={{ textAlign: "center", padding: "4px" }}>
+                  <button onClick={() => deleteCandidate(c.id)} style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 14 }}>×</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
-      {projCands.length===0 && !adding && (
-        <div style={{ fontSize:11, color:"#475569", textAlign:"center", padding:"8px 0" }}>候補者未登録</div>
+
+      {projCands.length === 0 && adding === false && (
+        <div style={{ fontSize: 11, color: "#475569", textAlign: "center", padding: "8px 0" }}>候補者未登録</div>
       )}
     </div>
   );
 };
+
 
 // ── 案件管理 ─────────────────────────────────────────────────
 const PROJECT_STATUSES = ["募集中","選考中","充足","クローズ"];
