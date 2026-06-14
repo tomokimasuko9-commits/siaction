@@ -110,8 +110,8 @@ const ModalWrap = ({ onClose, title, children, width=560 }) => (
 );
 
 // ── ダッシュボード ───────────────────────────────────────────
-const Dashboard = ({ companies, departments, logs, onRefresh }) => {
-  const kgiTarget  = 60;
+const Dashboard = ({ companies, departments, logs, kpiTargets, onRefresh }) => {
+  const kgiTarget  = kpiTargets.find(t=>t.kpi_name==="KGI目標")?.target || 60;
   const kgiCurrent = departments.reduce((s, d) => s + (d.active_count || 0), 0);
   const kgiPct     = pct(kgiCurrent, kgiTarget);
   const [sortedCos, setSortedCos] = useState([]);
@@ -147,10 +147,31 @@ const Dashboard = ({ companies, departments, logs, onRefresh }) => {
   return (
     <div>
       <div style={{ ...S.card, display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
-        <div style={{ minWidth:100 }}>
+        <div style={{ minWidth:120 }}>
           <div style={{ fontSize:10, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:4 }}>KGI進捗</div>
-          <div style={{ fontSize:22, fontWeight:700 }}>
-            {kgiCurrent} <span style={{ fontSize:13, color:"#64748b" }}>/ {kgiTarget}件</span>
+          <div style={{ fontSize:22, fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
+            {kgiCurrent}
+            {editingKgi ? (
+              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                <span style={{ fontSize:13, color:"#64748b" }}>/</span>
+                <input type="number" min="1" value={kgiEditVal}
+                  onChange={e=>setKgiEditVal(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&saveKgiTarget(kgiEditVal)}
+                  style={{ ...S.input, width:80, padding:"3px 8px", fontSize:14, textAlign:"center" }}
+                  autoFocus />
+                <span style={{ fontSize:13, color:"#64748b" }}>件</span>
+                <button onClick={()=>saveKgiTarget(kgiEditVal)}
+                  style={{ ...S.btn, padding:"3px 10px", background:"#2563eb", color:"#fff", fontSize:12 }}>保存</button>
+                <button onClick={()=>setEditingKgi(false)}
+                  style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:12 }}>✕</button>
+              </div>
+            ) : (
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <span style={{ fontSize:13, color:"#64748b" }}>/ {kgiTarget}件</span>
+                <span onClick={()=>{ setEditingKgi(true); setKgiEditVal(String(kgiTarget)); }}
+                  style={{ cursor:"pointer", fontSize:13, opacity:0.6 }} title="KGI目標を編集">✏️</span>
+              </div>
+            )}
           </div>
         </div>
         <div style={{ flex:1, height:10, background:"#334155", borderRadius:99, overflow:"hidden" }}>
@@ -421,6 +442,19 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
     };
   };
 
+  const kgiTarget = kpiTargets.find(t=>t.kpi_name==="KGI目標")?.target || 60;
+  const [editingKgi, setEditingKgi] = useState(false);
+  const [kgiEditVal, setKgiEditVal] = useState("");
+  const saveKgiTarget = async (val) => {
+    const existing = kpiTargets.find(t=>t.kpi_name==="KGI目標");
+    if (existing) {
+      await supabase.from("kpi_targets").update({ target: parseInt(val)||60 }).eq("id", existing.id);
+    } else {
+      await supabase.from("kpi_targets").insert([{ quarter:0, kpi_name:"KGI目標", target:parseInt(val)||60 }]);
+    }
+    setEditingKgi(false);
+    onRefresh();
+  };
   const [editingTarget, setEditingTarget] = useState(null);
   const [targetForm, setTargetForm] = useState({});
 
@@ -2440,7 +2474,7 @@ export default function App() {
   const kgiPct     = pct(kgiCurrent, 60);
 
   const views = {
-    dashboard: <Dashboard companies={companies} departments={departments} logs={logs} onRefresh={fetchAll} />,
+    dashboard: <Dashboard companies={companies} departments={departments} logs={logs} kpiTargets={kpiTargets} onRefresh={fetchAll} />,
     kpi:       <KpiView   companies={companies} departments={departments} logs={logs} projects={projects} candidates={candidates} kpiTargets={kpiTargets} onRefresh={fetchAll} />,
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
