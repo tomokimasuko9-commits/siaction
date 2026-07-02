@@ -488,32 +488,83 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
               {qi===0 && <div style={{ marginLeft:"auto", fontSize:9, background:"#2563eb", color:"#fff", padding:"2px 8px", borderRadius:99, fontWeight:700 }}>進行中</div>}
             </div>
             {["稼働件数","面談実施数","候補提示数","顧問アポ数","案件数"].map(kname => {
-              const a   = getActsByQ(qi)[kname]||0;
+              const autoVal  = getActsByQ(qi)[kname]||0;
+              const manualRec = kpiTargets.find(t=>t.quarter===qi+1 && t.kpi_name===kname);
+              const manualVal = manualRec?.actual;
+              const a   = (manualVal !== null && manualVal !== undefined) ? manualVal : autoVal;
               const tgt = getTgt(qi, kname);
               const p   = pct(a, tgt);
-              const isEd = editingKpi?.qi===qi && editingKpi?.name===kname;
+              const isEdTgt = editingKpi?.qi===qi && editingKpi?.name===kname && editingKpi?.field==="target";
+              const isEdAct = editingKpi?.qi===qi && editingKpi?.name===kname && editingKpi?.field==="actual";
+              const canManual = kname !== "稼働件数";
+
+              const saveActual = async (val) => {
+                const existing = kpiTargets.find(t=>t.quarter===qi+1 && t.kpi_name===kname);
+                const numVal = val==="" ? null : parseInt(val)||0;
+                if (existing) {
+                  await supabase.from("kpi_targets").update({ actual: numVal }).eq("id", existing.id);
+                } else {
+                  await supabase.from("kpi_targets").insert([{ quarter:qi+1, kpi_name:kname, target:tgt, actual:numVal }]);
+                }
+                setEditingKpi(null);
+                onRefresh();
+              };
+
               return (
-                <div key={kname} style={{ marginBottom:10 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, marginBottom:3, alignItems:"center" }}>
-                    <span style={{ color:"#94a3b8" }}>{kname}</span>
-                    {isEd ? (
-                      <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                        <input type="number" min="0" value={kpiEditVal}
-                          onChange={e=>setKpiEditVal(e.target.value)}
-                          style={{ ...S.input, width:64, padding:"2px 6px", fontSize:11, textAlign:"center" }}
-                          autoFocus onKeyDown={e=>e.key==="Enter"&&saveKpiTarget(qi,kname,kpiEditVal)} />
-                        <button onClick={()=>saveKpiTarget(qi,kname,kpiEditVal)}
-                          style={{ ...S.btn, padding:"2px 8px", background:"#2563eb", color:"#fff", fontSize:10 }}>保存</button>
-                        <button onClick={()=>setEditingKpi(null)}
-                          style={{ ...S.btn, padding:"2px 6px", background:"#334155", color:"#94a3b8", fontSize:10 }}>✕</button>
-                      </div>
-                    ) : (
-                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                        <span style={{ fontWeight:700, color:pctColor(p) }}>{a} / {tgt}</span>
-                        <span onClick={()=>{ setEditingKpi({qi,name:kname}); setKpiEditVal(String(tgt)); }}
-                          style={{ cursor:"pointer", fontSize:12, opacity:0.6 }} title="目標値を編集">✏️</span>
-                      </div>
-                    )}
+                <div key={kname} style={{ marginBottom:10, background:"#0f172a", borderRadius:7, padding:"7px 10px" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                    <span style={{ color:"#94a3b8", fontSize:11 }}>{kname}</span>
+                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+
+                      {/* 実績値 */}
+                      {isEdAct ? (
+                        <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+                          <input type="number" min="0" value={kpiEditVal}
+                            onChange={e=>setKpiEditVal(e.target.value)}
+                            style={{ ...S.input, width:58, padding:"2px 5px", fontSize:11, textAlign:"center" }}
+                            autoFocus onKeyDown={e=>{ if(e.key==="Enter") saveActual(kpiEditVal); }} />
+                          <button onClick={()=>saveActual(kpiEditVal)}
+                            style={{ ...S.btn, padding:"2px 6px", background:"#10b981", color:"#fff", fontSize:10 }}>保存</button>
+                          <button onClick={()=>saveActual("")}
+                            style={{ ...S.btn, padding:"2px 6px", background:"#475569", color:"#fff", fontSize:10 }} title="自動集計に戻す">自動</button>
+                          <button onClick={()=>setEditingKpi(null)}
+                            style={{ ...S.btn, padding:"2px 5px", background:"#334155", color:"#94a3b8", fontSize:10 }}>✕</button>
+                        </div>
+                      ) : (
+                        <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+                          <span style={{ fontWeight:700, color:pctColor(p), fontSize:12 }}>{a}</span>
+                          {manualVal !== null && manualVal !== undefined && (
+                            <span style={{ fontSize:9, color:"#f59e0b", background:"#f59e0b22", padding:"1px 4px", borderRadius:4 }}>手動</span>
+                          )}
+                          {canManual && (
+                            <span onClick={()=>{ setEditingKpi({qi,name:kname,field:"actual"}); setKpiEditVal(String(a)); }}
+                              style={{ cursor:"pointer", fontSize:11, opacity:0.5 }} title="実績値を手動入力">✏️</span>
+                          )}
+                        </div>
+                      )}
+
+                      <span style={{ color:"#475569", fontSize:11 }}>/</span>
+
+                      {/* 目標値 */}
+                      {isEdTgt ? (
+                        <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+                          <input type="number" min="0" value={kpiEditVal}
+                            onChange={e=>setKpiEditVal(e.target.value)}
+                            style={{ ...S.input, width:58, padding:"2px 5px", fontSize:11, textAlign:"center" }}
+                            autoFocus onKeyDown={e=>e.key==="Enter"&&saveKpiTarget(qi,kname,kpiEditVal)} />
+                          <button onClick={()=>saveKpiTarget(qi,kname,kpiEditVal)}
+                            style={{ ...S.btn, padding:"2px 6px", background:"#2563eb", color:"#fff", fontSize:10 }}>保存</button>
+                          <button onClick={()=>setEditingKpi(null)}
+                            style={{ ...S.btn, padding:"2px 5px", background:"#334155", color:"#94a3b8", fontSize:10 }}>✕</button>
+                        </div>
+                      ) : (
+                        <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+                          <span style={{ color:"#64748b", fontSize:12 }}>{tgt}</span>
+                          <span onClick={()=>{ setEditingKpi({qi,name:kname,field:"target"}); setKpiEditVal(String(tgt)); }}
+                            style={{ cursor:"pointer", fontSize:11, opacity:0.5 }} title="目標値を編集">✏️</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div style={{ height:5, background:"#334155", borderRadius:99, overflow:"hidden" }}>
                     <div style={{ width:`${p}%`, height:"100%", background:pctColor(p), borderRadius:99 }} />
