@@ -405,8 +405,10 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
     const found = kpiTargets.find(t => t.quarter === qi+1 && t.kpi_name === name);
     return found ? found.target : (DEFAULT_TGTS[name]?.[qi] || 0);
   };
-  const [editingKpi, setEditingKpi] = useState(null); // {qi, name}
-  const [kpiEditVal, setKpiEditVal] = useState("");
+  const [editingKpiTgt, setEditingKpiTgt] = useState(null); // {qi, name} 目標値用
+  const [editingKpiAct, setEditingKpiAct] = useState(null); // {qi, name} 実績値用
+  const [kpiTgtVal, setKpiTgtVal] = useState("");
+  const [kpiActVal, setKpiActVal] = useState("");
   const saveKpiTarget = async (qi, name, val) => {
     const existing = kpiTargets.find(t => t.quarter === qi+1 && t.kpi_name === name);
     if (existing) {
@@ -414,7 +416,7 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
     } else {
       await supabase.from("kpi_targets").insert([{ quarter:qi+1, kpi_name:name, target:parseInt(val)||0 }]);
     }
-    setEditingKpi(null);
+    setEditingKpiTgt(null);
     onRefresh();
   };
 
@@ -494,8 +496,8 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
               const a   = (manualVal !== null && manualVal !== undefined) ? manualVal : autoVal;
               const tgt = getTgt(qi, kname);
               const p   = pct(a, tgt);
-              const isEdTgt = editingKpi?.qi===qi && editingKpi?.name===kname && editingKpi?.field==="target";
-              const isEdAct = editingKpi?.qi===qi && editingKpi?.name===kname && editingKpi?.field==="actual";
+              const isEdTgt = editingKpiTgt?.qi===qi && editingKpiTgt?.name===kname;
+              const isEdAct = editingKpiAct?.qi===qi && editingKpiAct?.name===kname;
               const canManual = kname !== "稼働件数";
 
               const saveActual = async (val) => {
@@ -506,7 +508,7 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
                 } else {
                   await supabase.from("kpi_targets").insert([{ quarter:qi+1, kpi_name:kname, target:tgt, actual:numVal }]);
                 }
-                setEditingKpi(null);
+                setEditingKpiAct(null);
                 onRefresh();
               };
 
@@ -519,15 +521,15 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
                       {/* 実績値 */}
                       {isEdAct ? (
                         <div style={{ display:"flex", alignItems:"center", gap:3 }}>
-                          <input type="number" min="0" value={kpiEditVal}
-                            onChange={e=>setKpiEditVal(e.target.value)}
+                          <input type="number" min="0" value={kpiActVal}
+                            onChange={e=>setKpiActVal(e.target.value)}
                             style={{ ...S.input, width:58, padding:"2px 5px", fontSize:11, textAlign:"center" }}
-                            autoFocus onKeyDown={e=>{ if(e.key==="Enter") saveActual(kpiEditVal); }} />
-                          <button onClick={()=>saveActual(kpiEditVal)}
+                            autoFocus onKeyDown={e=>{ if(e.key==="Enter") saveActual(kpiActVal); }} />
+                          <button onClick={()=>saveActual(kpiActVal)}
                             style={{ ...S.btn, padding:"2px 6px", background:"#10b981", color:"#fff", fontSize:10 }}>保存</button>
                           <button onClick={()=>saveActual("")}
                             style={{ ...S.btn, padding:"2px 6px", background:"#475569", color:"#fff", fontSize:10 }} title="自動集計に戻す">自動</button>
-                          <button onClick={()=>setEditingKpi(null)}
+                          <button onClick={()=>setEditingKpiAct(null)}
                             style={{ ...S.btn, padding:"2px 5px", background:"#334155", color:"#94a3b8", fontSize:10 }}>✕</button>
                         </div>
                       ) : (
@@ -537,7 +539,7 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
                             <span style={{ fontSize:9, color:"#f59e0b", background:"#f59e0b22", padding:"1px 4px", borderRadius:4 }}>手動</span>
                           )}
                           {canManual && (
-                            <span onClick={()=>{ setEditingKpi({qi,name:kname,field:"actual"}); setKpiEditVal(String(a)); }}
+                            <span onClick={()=>{ setEditingKpiAct({qi,name:kname}); setKpiActVal(String(a)); }}
                               style={{ cursor:"pointer", fontSize:11, opacity:0.5 }} title="実績値を手動入力">✏️</span>
                           )}
                         </div>
@@ -548,19 +550,19 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
                       {/* 目標値 */}
                       {isEdTgt ? (
                         <div style={{ display:"flex", alignItems:"center", gap:3 }}>
-                          <input type="number" min="0" value={kpiEditVal}
-                            onChange={e=>setKpiEditVal(e.target.value)}
+                          <input type="number" min="0" value={kpiTgtVal}
+                            onChange={e=>setKpiTgtVal(e.target.value)}
                             style={{ ...S.input, width:58, padding:"2px 5px", fontSize:11, textAlign:"center" }}
-                            autoFocus onKeyDown={e=>e.key==="Enter"&&saveKpiTarget(qi,kname,kpiEditVal)} />
-                          <button onClick={()=>saveKpiTarget(qi,kname,kpiEditVal)}
+                            autoFocus onKeyDown={e=>e.key==="Enter"&&saveKpiTarget(qi,kname,kpiTgtVal)} />
+                          <button onClick={()=>saveKpiTarget(qi,kname,kpiTgtVal)}
                             style={{ ...S.btn, padding:"2px 6px", background:"#2563eb", color:"#fff", fontSize:10 }}>保存</button>
-                          <button onClick={()=>setEditingKpi(null)}
+                          <button onClick={()=>setEditingKpiTgt(null)}
                             style={{ ...S.btn, padding:"2px 5px", background:"#334155", color:"#94a3b8", fontSize:10 }}>✕</button>
                         </div>
                       ) : (
                         <div style={{ display:"flex", alignItems:"center", gap:3 }}>
                           <span style={{ color:"#64748b", fontSize:12 }}>{tgt}</span>
-                          <span onClick={()=>{ setEditingKpi({qi,name:kname,field:"target"}); setKpiEditVal(String(tgt)); }}
+                          <span onClick={()=>{ setEditingKpiTgt({qi,name:kname}); setKpiTgtVal(String(tgt)); }}
                             style={{ cursor:"pointer", fontSize:11, opacity:0.5 }} title="目標値を編集">✏️</span>
                         </div>
                       )}
