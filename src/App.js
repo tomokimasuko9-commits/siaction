@@ -525,10 +525,10 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
                           {manualVal !== null && manualVal !== undefined && (
                             <span style={{ fontSize:9, color:"#f59e0b", background:"#f59e0b22", padding:"1px 4px", borderRadius:4 }}>手動</span>
                           )}
-                          {canManual && editMode && (
+                          {canManual && editMode ? (
                             <span onClick={()=>{ setEditingKpiAct({qi,name:kname}); setKpiActVal(String(a)); }}
                               style={{ cursor:"pointer", fontSize:11, opacity:0.7 }} title="実績値を手動入力">✏️</span>
-                          )}
+                          ) : null}
                         </div>
                       )}
 
@@ -549,8 +549,8 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
                       ) : (
                         <div style={{ display:"flex", alignItems:"center", gap:3 }}>
                           <span style={{ color:"#64748b", fontSize:12 }}>{tgt}</span>
-                          {editMode && <span onClick={()=>{ setEditingKpiTgt({qi,name:kname}); setKpiTgtVal(String(tgt)); }}
-                            style={{ cursor:"pointer", fontSize:11, opacity:0.7 }} title="目標値を編集">✏️</span>}
+                          {editMode ? <span onClick={()=>{ setEditingKpiTgt({qi,name:kname}); setKpiTgtVal(String(tgt)); }}
+                            style={{ cursor:"pointer", fontSize:11, opacity:0.7 }} title="目標値を編集">✏️</span> : null}
                         </div>
                       )}
                     </div>
@@ -627,7 +627,7 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
                           <button onClick={()=>setEditingTarget(null)} style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:10 }}>戻る</button>
                         </div>
                       ) : (
-                        {editMode && <button onClick={()=>startEditTarget(co)} style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:10 }}>編集</button>}
+                        {editMode ? <button onClick={()=>startEditTarget(co)} style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:10 }}>編集</button> : null}
                       )}
                     </td>
                   </tr>
