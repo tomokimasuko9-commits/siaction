@@ -146,13 +146,6 @@ const Dashboard = ({ companies, departments, logs, kpiTargets, onRefresh }) => {
 
   return (
     <div>
-      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:10 }}>
-        <button onClick={()=>{ setEditMode(m=>!m); setEditingKpiTgt(null); setEditingKpiAct(null); setEditingKgi(false); setEditingTarget(null); }}
-          style={{ ...S.btn, padding:"6px 16px", background: editMode?"#10b981":"#334155", color:"#fff", fontSize:12 }}>
-          {editMode ? "✓ 編集モード終了" : "✏️ 編集モード"}
-        </button>
-      </div>
-
       <div style={{ ...S.card, display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
         <div style={{ minWidth:120 }}>
           <div style={{ fontSize:10, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:4 }}>KGI進捗</div>
@@ -465,6 +458,13 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
 
   return (
     <div>
+      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:10 }}>
+        <button onClick={()=>{ setEditMode(m=>!m); setEditingKpiTgt(null); setEditingKpiAct(null); setEditingKgi(false); setEditingTarget(null); }}
+          style={{ ...S.btn, padding:"6px 16px", background: editMode?"#10b981":"#334155", color:"#fff", fontSize:12 }}>
+          {editMode ? "✓ 編集モード終了" : "✏️ 編集モード"}
+        </button>
+      </div>
+
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
         {[0,1,2,3].map(qi => (
           <div key={qi} style={{ ...S.card, borderColor: qi===0?"#2563eb":"#334155" }}>
