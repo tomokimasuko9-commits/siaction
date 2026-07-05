@@ -149,29 +149,8 @@ const Dashboard = ({ companies, departments, logs, kpiTargets, onRefresh }) => {
       <div style={{ ...S.card, display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
         <div style={{ minWidth:120 }}>
           <div style={{ fontSize:10, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:4 }}>KGI進捗</div>
-          <div style={{ fontSize:22, fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
-            {kgiCurrent}
-            {editingKgi ? (
-              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                <span style={{ fontSize:13, color:"#64748b" }}>/</span>
-                <input type="number" min="1" value={kgiEditVal}
-                  onChange={e=>setKgiEditVal(e.target.value)}
-                  onKeyDown={e=>e.key==="Enter"&&saveKgiTarget(kgiEditVal)}
-                  style={{ ...S.input, width:80, padding:"3px 8px", fontSize:14, textAlign:"center" }}
-                  autoFocus />
-                <span style={{ fontSize:13, color:"#64748b" }}>件</span>
-                <button onClick={()=>saveKgiTarget(kgiEditVal)}
-                  style={{ ...S.btn, padding:"3px 10px", background:"#2563eb", color:"#fff", fontSize:12 }}>保存</button>
-                <button onClick={()=>setEditingKgi(false)}
-                  style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:12 }}>✕</button>
-              </div>
-            ) : (
-              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <span style={{ fontSize:13, color:"#64748b" }}>/ {kgiTarget}件</span>
-                <span onClick={()=>{ setEditingKgi(true); setKgiEditVal(String(kgiTarget)); }}
-                  style={{ cursor:"pointer", fontSize:13, opacity:0.6 }} title="KGI目標を編集">✏️</span>
-              </div>
-            )}
+          <div style={{ fontSize:22, fontWeight:700 }}>
+            {kgiCurrent} <span style={{ fontSize:13, color:"#64748b" }}>/ {kgiTarget}件</span>
           </div>
         </div>
         <div style={{ flex:1, height:10, background:"#334155", borderRadius:99, overflow:"hidden" }}>
