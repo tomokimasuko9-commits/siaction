@@ -368,7 +368,7 @@ const Dashboard = ({ companies, departments, logs, kpiTargets, onRefresh }) => {
 };
 
 // ── KPI進捗 ─────────────────────────────────────────────────
-const KpiView = ({ companies, departments, logs, projects, candidates, kpiTargets, onRefresh }) => {
+const KpiView = ({ companies, departments, logs, projects, candidates, kpiTargets, editMode, setEditMode, onRefresh }) => {
   const QLABELS = ["Q1  2026年4〜6月","Q2  2026年7〜9月","Q3  2026年10〜12月","Q4  2027年1〜3月"];
   const QTHEMES = ["顧問連携確立・初回訪問","ヒアリング深化・提案開始","面談集中・クロージング加速","刈り取り・KGI達成"];
   const KPI_NAMES = ["稼働件数","面談実施数","候補提示数","顧問アポ数","案件数"];
@@ -384,8 +384,7 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
     const found = kpiTargets.find(t => t.quarter === qi+1 && t.kpi_name === name);
     return found ? found.target : (DEFAULT_TGTS[name]?.[qi] || 0);
   };
-  const [editMode,      setEditMode]      = useState(false);
-  const [editingKpiTgt, setEditingKpiTgt] = useState(null);
+  const [editingKpiTgt, setEditingKpiTgt] = useState(null); // editMode は props から受け取る
   const [editingKpiAct, setEditingKpiAct] = useState(null);
   const [kpiTgtVal, setKpiTgtVal] = useState("");
   const [kpiActVal, setKpiActVal] = useState("");
@@ -458,13 +457,6 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
 
   return (
     <div>
-      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:10 }}>
-        <button onClick={()=>{ setEditMode(m=>!m); setEditingKpiTgt(null); setEditingKpiAct(null); setEditingKgi(false); setEditingTarget(null); }}
-          style={{ ...S.btn, padding:"6px 16px", background: editMode?"#10b981":"#334155", color:"#fff", fontSize:12 }}>
-          {editMode ? "✓ 編集モード終了" : "✏️ 編集モード"}
-        </button>
-      </div>
-
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
         {[0,1,2,3].map(qi => (
           <div key={qi} style={{ ...S.card, borderColor: qi===0?"#2563eb":"#334155" }}>
@@ -2378,6 +2370,7 @@ export default function App() {
   const [kpiTargets,   setKpiTargets]   = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [showModal,    setShowModal]    = useState(false);
+  const [kpiEditMode,  setKpiEditMode]  = useState(false);
   const [showTheme,    setShowTheme]    = useState(false);
   const [theme, setTheme] = useState(() => {
     try {
@@ -2515,7 +2508,7 @@ export default function App() {
 
   const views = {
     dashboard: <Dashboard companies={companies} departments={departments} logs={logs} kpiTargets={kpiTargets} onRefresh={fetchAll} />,
-    kpi:       <KpiView   companies={companies} departments={departments} logs={logs} projects={projects} candidates={candidates} kpiTargets={kpiTargets} onRefresh={fetchAll} />,
+    kpi:       <KpiView   companies={companies} departments={departments} logs={logs} projects={projects} candidates={candidates} kpiTargets={kpiTargets} editMode={kpiEditMode} setEditMode={setKpiEditMode} onRefresh={fetchAll} />,
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
     hearing:   <HearingView companies={companies} departments={departments} keyPersons={keyPersons} hearingData={hearingData} onSaveHearing={saveHearing} onSaveLog={saveLog} />,
@@ -2577,10 +2570,18 @@ export default function App() {
           <div style={{ fontSize:18, fontWeight:700, letterSpacing:"-0.3px" }}>
             {TABS.find(t=>t.id===tab)?.label}
           </div>
-          <button onClick={()=>setShowModal(true)}
-            style={{ ...S.btn, background:"#2563eb", color:"#fff" }}>
-            ＋ 活動を記録
-          </button>
+          <div style={{ display:"flex", gap:8 }}>
+            {tab === "kpi" && (
+              <button onClick={()=>setKpiEditMode(m=>!m)}
+                style={{ ...S.btn, background:kpiEditMode?"#10b981":"#475569", color:"#fff" }}>
+                {kpiEditMode ? "✓ 編集終了" : "✏️ 編集モード"}
+              </button>
+            )}
+            <button onClick={()=>setShowModal(true)}
+              style={{ ...S.btn, background:"#2563eb", color:"#fff" }}>
+              ＋ 活動を記録
+            </button>
+          </div>
         </div>
         <div style={{ padding:"20px 24px", flex:1 }}>
           {loading && tab !== "companies" ? <Spinner /> : views[tab]}
