@@ -506,17 +506,14 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
                             autoFocus onKeyDown={e=>{ if(e.key==="Enter") saveActual(kpiActVal); }} />
                           <button onClick={()=>saveActual(kpiActVal)}
                             style={{ ...S.btn, padding:"2px 6px", background:"#10b981", color:"#fff", fontSize:10 }}>保存</button>
-                          <button onClick={()=>saveActual("")}
-                            style={{ ...S.btn, padding:"2px 6px", background:"#475569", color:"#fff", fontSize:10 }} title="自動集計に戻す">自動</button>
+
                           <button onClick={()=>setEditingKpiAct(null)}
                             style={{ ...S.btn, padding:"2px 5px", background:"#334155", color:"#94a3b8", fontSize:10 }}>✕</button>
                         </div>
                       ) : (
                         <div style={{ display:"flex", alignItems:"center", gap:3 }}>
                           <span style={{ fontWeight:700, color:pctColor(p), fontSize:12 }}>{a}</span>
-                          {manualVal !== null && manualVal !== undefined && (
-                            <span style={{ fontSize:9, color:"#f59e0b", background:"#f59e0b22", padding:"1px 4px", borderRadius:4 }}>手動</span>
-                          )}
+
                           {canManual && editMode ? (
                             <span onClick={()=>{ setEditingKpiAct({qi,name:kname}); setKpiActVal(String(a)); }}
                               style={{ cursor:"pointer", fontSize:11, opacity:0.7 }} title="実績値を手動入力">✏️</span>
