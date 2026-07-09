@@ -516,7 +516,7 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
 
                           {canManual && editMode ? (
                             <span onClick={()=>{ setEditingKpiAct({qi,name:kname}); setKpiActVal(String(a)); }}
-                              style={{ cursor:"pointer", fontSize:11, opacity:0.7 }} title="実績値を手動入力">✏️</span>
+                              style={{ cursor:"pointer", fontSize:11, opacity:0.7 }} title="実績値を編集">✏️</span>
                           ) : null}
                         </div>
                       )}
@@ -616,7 +616,7 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
                           <button onClick={()=>setEditingTarget(null)} style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:10 }}>戻る</button>
                         </div>
                       ) : (
-                        {editMode ? <button onClick={()=>startEditTarget(co)} style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:10 }}>編集</button> : null}
+                        editMode ? <button onClick={()=>startEditTarget(co)} style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:10 }}>編集</button> : null
                       )}
                     </td>
                   </tr>
@@ -2568,12 +2568,6 @@ export default function App() {
             {TABS.find(t=>t.id===tab)?.label}
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            {tab === "kpi" && (
-              <button onClick={()=>setKpiEditMode(m=>!m)}
-                style={{ ...S.btn, background:kpiEditMode?"#10b981":"#475569", color:"#fff" }}>
-                {kpiEditMode ? "✓ 編集終了" : "✏️ 編集モード"}
-              </button>
-            )}
             <button onClick={()=>setShowModal(true)}
               style={{ ...S.btn, background:"#2563eb", color:"#fff" }}>
               ＋ 活動を記録
@@ -2584,6 +2578,13 @@ export default function App() {
           {loading && tab !== "companies" ? <Spinner /> : views[tab]}
         </div>
       </div>
+
+      {tab === "kpi" && (
+        <button onClick={()=>setKpiEditMode(m=>!m)}
+          style={{ position:"fixed", right:24, bottom:24, zIndex:50, padding:"10px 18px", borderRadius:99, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, boxShadow:"0 4px 14px rgba(0,0,0,0.35)", background:kpiEditMode?"#10b981":"#475569", color:"#fff" }}>
+          {kpiEditMode ? "✓ 編集終了" : "✏️ 編集モード"}
+        </button>
+      )}
 
       {showModal && (
         <LogModal companies={companies} departments={departments} keyPersons={keyPersons} onClose={()=>setShowModal(false)} onSave={saveLog} />
