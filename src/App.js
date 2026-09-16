@@ -110,9 +110,9 @@ const ModalWrap = ({ onClose, title, children, width=560 }) => (
 );
 
 // ── ダッシュボード ───────────────────────────────────────────
-const Dashboard = ({ companies, departments, logs, kpiTargets, onRefresh }) => {
+const Dashboard = ({ companies, departments, engineers, logs, kpiTargets, onRefresh }) => {
   const kgiTarget  = kpiTargets.find(t=>t.kpi_name==="KGI目標")?.target || 60;
-  const kgiCurrent = departments.reduce((s, d) => s + (d.active_count || 0), 0);
+  const kgiCurrent = engineers.filter(e => e.status === "稼働中").length;
   const kgiPct     = pct(kgiCurrent, kgiTarget);
   const [sortedCos, setSortedCos] = useState([]);
   const [dragIdx,   setDragIdx]   = useState(null);
@@ -273,7 +273,7 @@ const Dashboard = ({ companies, departments, logs, kpiTargets, onRefresh }) => {
       </div>
 
       {coWithDepts.map((co, idx) => {
-        const total = co.depts.reduce((s, d) => s + (d.active_count || 0), 0);
+        const total = engineers.filter(e => e.status === "稼働中" && e.company_id === co.id).length;
         const ll    = co.latestLog;
         return (
           <div key={co.id} draggable
@@ -348,16 +348,19 @@ const Dashboard = ({ companies, departments, logs, kpiTargets, onRefresh }) => {
 
             {co.depts.length > 0 && (
               <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-                {co.depts.map(d => (
+                {co.depts.map(d => {
+                  const dCount = engineers.filter(e => e.status === "稼働中" && e.department_id === d.id).length;
+                  return (
                   <div key={d.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0 5px 16px", borderTop:"1px solid #334155" }}>
                     <div style={{ width:3, height:14, borderRadius:2, background:"#334155" }} />
                     <span style={{ flex:1, fontSize:12, color:"#94a3b8" }}>{d.name}</span>
                     {d.start_month && <span style={{ fontSize:10, color:"#475569", background:"#334155", padding:"1px 6px", borderRadius:99 }}>{d.start_month}〜</span>}
-                    <span style={{ fontSize:14, fontWeight:700, color: d.active_count>0?"#10b981":"#475569" }}>
-                      {d.active_count||0}<span style={{ fontSize:10, color:"#64748b" }}>名</span>
+                    <span style={{ fontSize:14, fontWeight:700, color: dCount>0?"#10b981":"#475569" }}>
+                      {dCount}<span style={{ fontSize:10, color:"#64748b" }}>名</span>
                     </span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -568,7 +571,7 @@ const KpiView = ({ companies, departments, engineers, logs, projects, candidates
             </thead>
             <tbody>
               {companies.map(co => {
-                const act = departments.filter(d=>d.company_id===co.id).reduce((s,d)=>s+(d.active_count||0),0);
+                const act = engineers.filter(e => e.status === "稼働中" && e.company_id === co.id).length;
                 const q1  = co.q1_target||0;
                 const q2  = co.q2_target||0;
                 const q3  = co.q3_target||0;
@@ -979,7 +982,7 @@ const HearingView = ({ companies, departments, keyPersons, hearingData, onSaveHe
 };
 
 // ── 企業管理 ────────────────────────────────────────────────
-const CompanyManager = ({ companies, departments, keyPersons, archivedCos, archivedDepts, onRefresh }) => {
+const CompanyManager = ({ companies, departments, engineers, keyPersons, archivedCos, archivedDepts, onRefresh }) => {
   const [editCo,  setEditCo]  = useState(null);
   const [editDept,setEditDept]= useState(null);
   const [newCoForm, setNewCoForm] = useState({ name:"", priority:"重要", category:"", unit_range:"", note:"" });
@@ -1152,17 +1155,13 @@ const CompanyManager = ({ companies, departments, keyPersons, archivedCos, archi
                               <span style={{ fontSize:11, color:"#64748b" }}>開始月</span>
                               <input value={editDept.start_month||""} onChange={e=>setEditDept(ed=>({...ed,start_month:e.target.value}))} placeholder="例: 2026-04" style={{ ...S.input, width:90, padding:"4px 8px", fontSize:12 }} />
                             </div>
-                            <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                              <span style={{ fontSize:11, color:"#64748b" }}>稼働数</span>
-                              <input type="number" min="0" value={editDept.active_count||0} onChange={e=>setEditDept(ed=>({...ed,active_count:parseInt(e.target.value)||0}))} style={{ ...S.input, width:55, padding:"4px 8px", fontSize:12, textAlign:"center" }} />
-                            </div>
                             <button onClick={()=>saveDept(editDept)} style={{ ...S.btn, padding:"4px 10px", background:"#2563eb", color:"#fff", fontSize:11 }}>保存</button>
                             <button onClick={()=>setEditDept(null)} style={{ ...S.btn, padding:"4px 10px", background:"#334155", color:"#94a3b8", fontSize:11 }}>戻る</button>
                           </>
                         ) : (
                           <>
                             <span style={{ flex:1, fontSize:12, color:"#94a3b8" }}>{d.name}</span>
-                            <span style={{ fontSize:14, fontWeight:700, color: d.active_count>0?"#10b981":"#475569" }}>{d.active_count||0}<span style={{ fontSize:10, color:"#64748b" }}>名</span></span>
+                            <span style={{ fontSize:14, fontWeight:700, color: engineers.filter(e=>e.status==="稼働中"&&e.department_id===d.id).length>0?"#10b981":"#475569" }}>{engineers.filter(e=>e.status==="稼働中"&&e.department_id===d.id).length}<span style={{ fontSize:10, color:"#64748b" }}>名</span></span>
                             <button onClick={()=>setEditDept({...d})} style={{ ...S.btn, padding:"3px 8px", background:"#334155", color:"#94a3b8", fontSize:11 }}>編集</button>
                             <button onClick={()=>deleteDept(d.id)} style={{ ...S.btn, padding:"3px 8px", background:"#7f1d1d", color:"#fca5a5", fontSize:11 }}>削除</button>
                           </>
@@ -2523,18 +2522,18 @@ export default function App() {
     { id:"strategy",  icon:"🗺", label:"営業戦略" },
   ];
 
-  const kgiCurrent = departments.reduce((s,d)=>s+(d.active_count||0),0);
+  const kgiCurrent = engineers.filter(e=>e.status==="稼働中").length;
   const kgiPct     = pct(kgiCurrent, 60);
 
   const views = {
-    dashboard: <Dashboard companies={companies} departments={departments} logs={logs} kpiTargets={kpiTargets} onRefresh={fetchAll} />,
+    dashboard: <Dashboard companies={companies} departments={departments} engineers={engineers} logs={logs} kpiTargets={kpiTargets} onRefresh={fetchAll} />,
     kpi:       <KpiView   companies={companies} departments={departments} engineers={engineers} logs={logs} projects={projects} candidates={candidates} kpiTargets={kpiTargets} editMode={kpiEditMode} setEditMode={setKpiEditMode} onRefresh={fetchAll} />,
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
     hearing:   <HearingView companies={companies} departments={departments} keyPersons={keyPersons} hearingData={hearingData} onSaveHearing={saveHearing} onSaveLog={saveLog} />,
     engineers: <EngineerView companies={companies} departments={departments} engineers={engineers} archivedEngs={archivedEngs} onRefresh={fetchAll} />,
     projects:  <ProjectView  companies={companies} departments={departments} projects={projects} candidates={candidates} onRefresh={fetchAll} />,
-    companies: <CompanyManager companies={companies} departments={departments} keyPersons={keyPersons} archivedCos={archivedCos} archivedDepts={archivedDepts} onRefresh={fetchAll} />,
+    companies: <CompanyManager companies={companies} departments={departments} engineers={engineers} keyPersons={keyPersons} archivedCos={archivedCos} archivedDepts={archivedDepts} onRefresh={fetchAll} />,
     strategy:  <StrategyView companies={companies} strategies={strategies} onRefresh={fetchAll} />,
   };
 
