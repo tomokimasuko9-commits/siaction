@@ -368,7 +368,7 @@ const Dashboard = ({ companies, departments, logs, kpiTargets, onRefresh }) => {
 };
 
 // ── KPI進捗 ─────────────────────────────────────────────────
-const KpiView = ({ companies, departments, logs, projects, candidates, kpiTargets, editMode, setEditMode, onRefresh }) => {
+const KpiView = ({ companies, departments, engineers, logs, projects, candidates, kpiTargets, editMode, setEditMode, onRefresh }) => {
   const QLABELS = ["Q1  2026年4〜6月","Q2  2026年7〜9月","Q3  2026年10〜12月","Q4  2027年1〜3月"];
   const QTHEMES = ["顧問連携確立・初回訪問","ヒアリング深化・提案開始","面談集中・クロージング加速","刈り取り・KGI達成"];
   const KPI_NAMES = ["稼働件数","面談実施数","候補提示数","顧問アポ数","案件数"];
@@ -415,7 +415,7 @@ const KpiView = ({ companies, departments, logs, projects, candidates, kpiTarget
     const qProjIds = new Set(qProjs.map(p=>p.id));
     const qCands = candidates.filter(c => qProjIds.has(c.project_id));
     return {
-      稼働件数:   departments.reduce((s,d)=>s+(d.active_count||0),0),
+      稼働件数:   engineers.filter(e => e.status === "稼働中").length,
       面談実施数: qCands.filter(c=>c.interviewed).length + qLogs.filter(l=>l.activity_type==="面談実施").length,
       候補提示数: qCands.filter(c=>c.recommended).length + qLogs.filter(l=>l.activity_type==="候補者提案").length,
       顧問アポ数: qLogs.filter(l=>l.activity_type==="顧問からアポ取得").length,
@@ -1814,12 +1814,35 @@ const EngineerView = ({ companies, departments, engineers, archivedEngs, onRefre
     };
     if (editEng) {
       await supabase.from("engineers").update(data).eq("id", editEng.id);
-      // 契約終了の場合、部署の稼働数を-1
-      if (data.status === "契約終了" && editEng.status === "稼働中" && data.department_id) {
-        const dept = departments.find(d => d.id === data.department_id);
+      // 稼働中の入り/抜け・部署異動に応じて、旧部署・新部署の稼働数を正しく増減させる
+      const wasActive = editEng.status === "稼働中";
+      const isActive  = data.status === "稼働中";
+      const oldDeptId = editEng.department_id || null;
+      const newDeptId = data.department_id || null;
+
+      const decrementDept = async (deptId) => {
+        const dept = departments.find(d => d.id === deptId);
         if (dept && dept.active_count > 0) {
           await supabase.from("departments").update({ active_count: dept.active_count - 1 }).eq("id", dept.id);
         }
+      };
+      const incrementDept = async (deptId) => {
+        const dept = departments.find(d => d.id === deptId);
+        if (dept) {
+          await supabase.from("departments").update({ active_count: (dept.active_count||0)+1 }).eq("id", dept.id);
+        }
+      };
+
+      if (wasActive && !isActive) {
+        // 稼働中 → 稼働中以外：旧部署から-1
+        if (oldDeptId) await decrementDept(oldDeptId);
+      } else if (!wasActive && isActive) {
+        // 稼働中以外 → 稼働中：新部署に+1
+        if (newDeptId) await incrementDept(newDeptId);
+      } else if (wasActive && isActive && oldDeptId !== newDeptId) {
+        // 稼働中のまま部署異動：旧部署-1・新部署+1
+        if (oldDeptId) await decrementDept(oldDeptId);
+        if (newDeptId) await incrementDept(newDeptId);
       }
     } else {
       await supabase.from("engineers").insert([data]);
@@ -2505,7 +2528,7 @@ export default function App() {
 
   const views = {
     dashboard: <Dashboard companies={companies} departments={departments} logs={logs} kpiTargets={kpiTargets} onRefresh={fetchAll} />,
-    kpi:       <KpiView   companies={companies} departments={departments} logs={logs} projects={projects} candidates={candidates} kpiTargets={kpiTargets} editMode={kpiEditMode} setEditMode={setKpiEditMode} onRefresh={fetchAll} />,
+    kpi:       <KpiView   companies={companies} departments={departments} engineers={engineers} logs={logs} projects={projects} candidates={candidates} kpiTargets={kpiTargets} editMode={kpiEditMode} setEditMode={setKpiEditMode} onRefresh={fetchAll} />,
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
     hearing:   <HearingView companies={companies} departments={departments} keyPersons={keyPersons} hearingData={hearingData} onSaveHearing={saveHearing} onSaveLog={saveLog} />,
