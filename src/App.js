@@ -2081,6 +2081,20 @@ const EngineerView = ({ companies, departments, engineers, archivedEngs, onRefre
   );
 };
 
+// ── 月別アクション ──────────────────────────────────────────
+const MonthlyActionsView = () => {
+  const theme = React.useContext(ThemeCtx);
+  return (
+    <div style={{ margin: "-20px -24px", height: "calc(100vh - 64px)", overflow: "hidden" }}>
+      <iframe
+        src="/monthly-actions.html"
+        style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+        title="月別アクション"
+      />
+    </div>
+  );
+};
+
 // ── 営業戦略 ────────────────────────────────────────────────
 const StrategyView = ({ companies, strategies, onRefresh }) => {
   const [selectedCo, setSelectedCo] = useState(companies[0]?.id || "");
@@ -2513,6 +2527,7 @@ export default function App() {
   const TABS = [
     { id:"dashboard", icon:"📊", label:"ダッシュボード" },
     { id:"kpi",       icon:"🎯", label:"KGI・KPI進捗" },
+    { id:"monthly",   icon:"📅", label:"月別アクション" },
     { id:"summary",   icon:"📋", label:"営業サマリー" },
     { id:"log",       icon:"📝", label:"活動ログ" },
     { id:"hearing",   icon:"🎧", label:"ヒアリングシート" },
@@ -2527,6 +2542,7 @@ export default function App() {
 
   const views = {
     dashboard: <Dashboard companies={companies} departments={departments} engineers={engineers} logs={logs} kpiTargets={kpiTargets} onRefresh={fetchAll} />,
+    monthly:   <MonthlyActionsView />,
     kpi:       <KpiView   companies={companies} departments={departments} engineers={engineers} logs={logs} projects={projects} candidates={candidates} kpiTargets={kpiTargets} editMode={kpiEditMode} setEditMode={setKpiEditMode} onRefresh={fetchAll} />,
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
@@ -2550,7 +2566,7 @@ export default function App() {
         </div>
         <div style={{ padding:"8px 0", flex:1, overflowY:"auto" }}>
           {[
-            { section:"メイン", items:["dashboard","kpi","summary"] },
+            { section:"メイン", items:["dashboard","kpi","monthly","summary"] },
             { section:"活動管理", items:["log","hearing"] },
             { section:"人材管理", items:["engineers","projects"] },
             { section:"設定・管理", items:["companies","strategy"] },
