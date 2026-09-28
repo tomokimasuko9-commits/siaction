@@ -375,8 +375,8 @@
 </div>
 
 <div class="legend">
-  <div class="legend-item"><div class="legend-dot dot-masuko"></div><span>益子（マネージャー）</span></div>
-  <div class="legend-item"><div class="legend-dot dot-buka"></div><span>部下（担当）</span></div>
+  <div class="legend-item"><div class="legend-dot dot-masuko"></div><span contenteditable="false">益子（マネージャー）</span></div>
+  <div class="legend-item"><div class="legend-dot dot-buka"></div><span contenteditable="false">部下（担当）</span></div>
 </div>
 
 <!-- Q3 Label -->
@@ -835,6 +835,8 @@ function toggleEdit() {
 
   // 編集モードを終了するタイミングで、変更内容をブラウザに保存する
   if (!editMode) savePlanContent();
+  // BPリストのWebサイト欄（入力欄⇔リンク表示）を切り替え
+  if (typeof renderBP === 'function') renderBP();
 }
 
 function handleHeaderClick(e, id) {
@@ -952,6 +954,13 @@ const BP_LIST = [
 // BP list state
 let bpFilter = 'all';
 const bpStatuses = JSON.parse(localStorage.getItem('bpStatuses') || '{}');
+const bpWebOverrides = JSON.parse(localStorage.getItem('bpWebOverrides') || '{}');
+
+function saveWeb(no, val) {
+  bpWebOverrides[no] = val;
+  try { localStorage.setItem('bpWebOverrides', JSON.stringify(bpWebOverrides)); } catch(e) {}
+  renderBP();
+}
 
 function setPFilter(el, p) {
   bpFilter = p;
@@ -994,9 +1003,12 @@ function renderBP() {
 
   tbody.innerHTML = filtered.map(r => {
     const st = bpStatuses[r.no] || r.status;
-    const webCell = r.web.startsWith('http')
-      ? `<a href="${r.web}" target="_blank" style="color:#818cf8;text-decoration:none;font-size:10px;" title="${r.web}">🔗 開く</a>`
-      : `<span style="color:var(--text-muted);font-size:10px;">要確認</span>`;
+    const webVal = bpWebOverrides[r.no] !== undefined ? bpWebOverrides[r.no] : r.web;
+    const webCell = editMode
+      ? `<input type="text" value="${webVal.startsWith('http')?webVal:''}" placeholder="URLを貼り付け" onchange="saveWeb(${r.no}, this.value)" style="width:140px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 6px;color:var(--text);font-size:10px;outline:none;">`
+      : webVal.startsWith('http')
+        ? `<a href="${webVal}" target="_blank" style="color:#818cf8;text-decoration:none;font-size:10px;" title="${webVal}">🔗 開く</a>`
+        : `<span style="color:var(--text-muted);font-size:10px;">要確認</span>`;
     const aiCell = r.ai === '○' ? '<span style="color:#34d399;">○</span>' : r.ai === '△' ? '<span style="color:#fbbf24;">△</span>' : '<span style="color:#475569;">-</span>';
     const stOpts = STATUSES.map(s => `<option value="${s}" ${s===st?'selected':''}>${s}</option>`).join('');
     return `<tr style="border-bottom:1px solid var(--border);background:var(--surface);" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='var(--surface)'">
