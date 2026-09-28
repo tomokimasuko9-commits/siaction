@@ -6,6 +6,10 @@ const supabase = createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4aGttam1yanpkc296ZmFnZ3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzOTY2MjgsImV4cCI6MjA5Mzk3MjYyOH0.e7ncLRc67n6i3AwA5btRrZ1TsYSqTH4Wh4F9es5Clww"
 );
 
+// ── バージョン番号 ────────────────────────────────────────────
+// ページに大きな変更を加えるたびにカウントアップしてください（例: 1.0.1 → 1.0.2）
+const APP_VERSION = "1.0.1";
+
 // ── デフォルトテーマ定義 ──────────────────────────────────────
 const DEFAULT_THEME = {
   bgApp:"#0f172a", bgSidebar:"#1e293b", bgCard:"#1e293b", bgInput:"#0f172a",
@@ -2563,6 +2567,7 @@ export default function App() {
         <div style={{ padding:"16px 18px", borderBottom:"1px solid #334155" }}>
           <div style={{ fontSize:theme.fontLg, fontWeight:700, letterSpacing:"-0.5px", color:theme.textPrimary }}>SIerSales</div>
           <div style={{ fontSize:theme.fontXs, color:theme.textMuted, marginTop:2 }}>開拓営業管理システム</div>
+          <div style={{ fontSize:9, color:"#475569", marginTop:4 }}>v{APP_VERSION}</div>
         </div>
         <div style={{ padding:"8px 0", flex:1, overflowY:"auto" }}>
           {[
