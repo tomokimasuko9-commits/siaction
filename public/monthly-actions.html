@@ -351,6 +351,7 @@
   <button class="btn btn-save" onclick="saveHTML()">💾 HTMLで保存</button>
 </div>
 
+<div id="plan-content">
 <div class="header">
   <h1>🎯 下期 月別アクション通知</h1>
   <div class="subtitle" contenteditable="false">SIer二次請企業開拓 | 2026年10月〜2027年3月 | 益子チーム（2名体制）</div>
@@ -796,11 +797,29 @@
   SIer二次請企業開拓 ｜ KGI 90名（改訂）達成計画 ｜ 益子チーム 2名体制<br>
   現在稼働24名 → 2027年3月末 90名 ｜ 月平均+11名ペース
 </div>
+</div>
 
 <div class="toast" id="toast">✅ HTMLを保存しました</div>
 
 <script>
 let editMode = false;
+
+function savePlanContent() {
+  const el = document.getElementById('plan-content');
+  if (!el) return;
+  try { localStorage.setItem('planContentHTML', el.innerHTML); } catch(e) {}
+}
+
+function restorePlanContent() {
+  try {
+    const saved = localStorage.getItem('planContentHTML');
+    if (!saved) return;
+    const el = document.getElementById('plan-content');
+    if (el) el.innerHTML = saved;
+  } catch(e) {}
+}
+
+document.addEventListener('DOMContentLoaded', restorePlanContent);
 
 function toggleEdit() {
   editMode = !editMode;
@@ -813,6 +832,9 @@ function toggleEdit() {
   document.querySelectorAll('[contenteditable]').forEach(el => {
     el.contentEditable = editMode ? 'true' : 'false';
   });
+
+  // 編集モードを終了するタイミングで、変更内容をブラウザに保存する
+  if (!editMode) savePlanContent();
 }
 
 function handleHeaderClick(e, id) {
@@ -829,6 +851,7 @@ function toggle(id) {
 
 function delLi(btn) {
   btn.closest('li').remove();
+  savePlanContent();
 }
 
 function addLi(listId) {
@@ -836,6 +859,7 @@ function addLi(listId) {
   const li = document.createElement('li');
   li.innerHTML = '<span class="li-text" contenteditable="true">新しい行動を入力...</span><button class="del-btn" onclick="delLi(this)">✕</button>';
   ul.appendChild(li);
+  savePlanContent();
   // フォーカス
   setTimeout(() => {
     const span = li.querySelector('.li-text');
