@@ -2503,7 +2503,6 @@ const MONTHLY_ACTIONS_BODY_HTML = `
         <div class="add-action-row"><button class="btn btn-add" onclick="addLi('oct-buka')">＋ 行動を追加</button></div>
       </div>
     </div>
-          </div>
     <div class="milestone">
       <strong>📌 月末チェックポイント</strong>
       <span contenteditable="false" data-key="k028">累計35名達成 ／ 部下が担当企業の初訪問を全社完了 ／ BREXA・eSOLの面談パイプライン確立</span>
@@ -2570,7 +2569,6 @@ const MONTHLY_ACTIONS_BODY_HTML = `
         <div class="add-action-row"><button class="btn btn-add" onclick="addLi('nov-buka')">＋ 行動を追加</button></div>
       </div>
     </div>
-          </div>
     <div class="milestone">
       <strong>📌 月末チェックポイント</strong>
       <span contenteditable="false" data-key="k050">累計46名達成 ／ Q3 KPI達成ペースを確認（面談77回の半数40回以上） ／ クロスリスティング初回稼働スタート</span>
@@ -2637,7 +2635,6 @@ const MONTHLY_ACTIONS_BODY_HTML = `
         <div class="add-action-row"><button class="btn btn-add" onclick="addLi('dec-buka')">＋ 行動を追加</button></div>
       </div>
     </div>
-          </div>
     <div class="milestone">
       <strong>📌 Q3クローズ チェックポイント</strong>
       <span contenteditable="false" data-key="k072">累計57名（KGI目標の63%）達成 ／ 年内稼働確定者リスト共有 ／ Q4修正アクション計画確定</span>
@@ -2710,7 +2707,6 @@ const MONTHLY_ACTIONS_BODY_HTML = `
         <div class="add-action-row"><button class="btn btn-add" onclick="addLi('jan-buka')">＋ 行動を追加</button></div>
       </div>
     </div>
-          </div>
     <div class="milestone">
       <strong>📌 月末チェックポイント</strong>
       <span contenteditable="false" data-key="k095">累計68名達成 ／ BREXA・eSOLのQ4分面談パイプライン完備 ／ 残り22名への道筋確定</span>
@@ -2777,7 +2773,6 @@ const MONTHLY_ACTIONS_BODY_HTML = `
         <div class="add-action-row"><button class="btn btn-add" onclick="addLi('feb-buka')">＋ 行動を追加</button></div>
       </div>
     </div>
-          </div>
     <div class="milestone">
       <strong>📌 月末チェックポイント</strong>
       <span contenteditable="false" data-key="k117">累計79名達成（KGI88%） ／ 3月スタート予定者を含む内定確定者リスト整備 ／ 残11名の3月達成計画確定</span>
@@ -2844,7 +2839,6 @@ const MONTHLY_ACTIONS_BODY_HTML = `
         <div class="add-action-row"><button class="btn btn-add" onclick="addLi('mar-buka')">＋ 行動を追加</button></div>
       </div>
     </div>
-          </div>
     <div class="milestone" style="background: rgba(245,158,11,0.08); border-color: var(--buka); color: #fcd34d;">
       <strong>🏆 KGI達成チェックポイント</strong>
       <span contenteditable="false" data-key="k139">稼働90名達成 ／ 全稼働者の稼働スタート確認 ／ 次期中期計画策定完了</span>
