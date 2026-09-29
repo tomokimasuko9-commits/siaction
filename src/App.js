@@ -2086,16 +2086,1282 @@ const EngineerView = ({ companies, departments, engineers, archivedEngs, onRefre
 };
 
 // ── 月別アクション ──────────────────────────────────────────
-const MonthlyActionsView = () => {
-  const theme = React.useContext(ThemeCtx);
-  return (
-    <div style={{ margin: "-20px -24px", height: "calc(100vh - 64px)", overflow: "hidden" }}>
-      <iframe
-        src="/monthly-actions.html"
-        style={{ width: "100%", height: "100%", border: "none", display: "block" }}
-        title="月別アクション"
-      />
+const MONTHLY_ACTIONS_CSS = `
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d2e;
+    --surface2: #252840;
+    --border: #2e3255;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #6366f1;
+    --masuko: #10b981;
+    --buka: #f59e0b;
+    --q3: #6366f1;
+    --q4: #ec4899;
+    --progress: #10b981;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  /* Edit mode toolbar */
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(15,17,23,0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    margin: -24px -16px 24px;
+    backdrop-filter: blur(8px);
+    flex-wrap: wrap;
+  }
+  .toolbar-title { font-size: 13px; color: var(--text-muted); flex: 1; }
+  .btn {
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-edit {
+    background: rgba(99,102,241,0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99,102,241,0.3);
+  }
+  .btn-edit:hover { background: rgba(99,102,241,0.25); }
+  .btn-edit.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn-save {
+    background: rgba(16,185,129,0.15);
+    color: #34d399;
+    border: 1px solid rgba(16,185,129,0.3);
+  }
+  .btn-save:hover { background: rgba(16,185,129,0.25); }
+  .btn-add {
+    background: rgba(245,158,11,0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245,158,11,0.3);
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+  .btn-add:hover { background: rgba(245,158,11,0.25); }
+  .edit-hint {
+    display: none;
+    font-size: 11px;
+    color: #818cf8;
+    background: rgba(99,102,241,0.1);
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(99,102,241,0.2);
+  }
+  body.edit-mode .edit-hint { display: block; }
+
+  /* Edit mode visual cues */
+  body.edit-mode [contenteditable] {
+    outline: 1px dashed rgba(99,102,241,0.4);
+    border-radius: 4px;
+    cursor: text;
+    min-width: 20px;
+    display: inline-block;
+  }
+  body.edit-mode [contenteditable]:focus {
+    outline: 2px solid rgba(99,102,241,0.7);
+    background: rgba(99,102,241,0.05);
+  }
+  body.edit-mode .action-list li {
+    position: relative;
+  }
+  body.edit-mode .del-btn {
+    display: inline-flex;
+  }
+  .del-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: rgba(239,68,68,0.2);
+    color: #f87171;
+    border: none;
+    cursor: pointer;
+    font-size: 10px;
+    margin-left: 6px;
+    vertical-align: middle;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .del-btn:hover { background: rgba(239,68,68,0.4); }
+  body.edit-mode .add-action-row { display: flex; }
+  .add-action-row {
+    display: none;
+    gap: 6px;
+    margin-top: 6px;
+    align-items: center;
+  }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 32px; }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+  .header .subtitle { font-size: 13px; color: var(--text-muted); }
+
+  /* KGI overview */
+  .kgi-overview {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .kgi-main { flex: 1; min-width: 200px; }
+  .kgi-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .kgi-number { font-size: 28px; font-weight: 800; color: var(--progress); }
+  .kgi-number span { font-size: 14px; font-weight: 400; color: var(--text-muted); }
+  .kgi-bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .kgi-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--progress), #34d399); }
+  .kgi-stats { display: flex; gap: 16px; flex-wrap: wrap; }
+  .kgi-stat { text-align: center; min-width: 80px; }
+  .kgi-stat-value { font-size: 20px; font-weight: 700; }
+  .kgi-stat-label { font-size: 11px; color: var(--text-muted); }
+  .green { color: var(--progress); }
+  .orange { color: var(--buka); }
+  .purple { color: var(--accent); }
+  .pink { color: #ec4899; }
+
+  /* Legend */
+  .legend { display: flex; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dot-masuko { background: var(--masuko); }
+  .dot-buka { background: var(--buka); }
+
+  /* Quarter label */
+  .quarter-label { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; margin-top: 4px; }
+  .q-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: 1px; }
+  .q3-badge { background: rgba(99,102,241,0.2); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+  .q4-badge { background: rgba(236,72,153,0.2); color: #f472b6; border: 1px solid rgba(236,72,153,0.3); }
+  .q-theme { font-size: 12px; color: var(--text-muted); }
+
+  /* Month card */
+  .month-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .month-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .month-header:hover { background: var(--surface2); }
+  .month-left { display: flex; align-items: center; gap: 12px; }
+  .month-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .q3-icon { background: rgba(99,102,241,0.15); }
+  .q4-icon { background: rgba(236,72,153,0.15); }
+  .month-title { font-size: 16px; font-weight: 700; }
+  .month-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .month-right { display: flex; align-items: center; gap: 12px; }
+  .month-target { text-align: right; }
+  .month-target-num { font-size: 20px; font-weight: 800; }
+  .month-target-label { font-size: 10px; color: var(--text-muted); }
+  .chevron { font-size: 14px; color: var(--text-muted); transition: transform 0.2s; }
+  .month-card.open .chevron { transform: rotate(180deg); }
+
+  /* Progress mini */
+  .month-progress { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+  .prog-bar { width: 60px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--progress), #34d399); }
+
+  /* Card body */
+  .month-body { display: none; padding: 16px 18px; }
+  .month-card.open .month-body { display: block; }
+
+  /* KPI row */
+  .kpi-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .kpi-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .kpi-chip .kpi-val { font-weight: 700; color: var(--text); }
+  .kpi-chip .kpi-lbl { color: var(--text-muted); }
+
+  /* Role sections */
+  .role-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  @media (max-width: 500px) { .role-sections { grid-template-columns: 1fr; } }
+  .role-card { border-radius: 10px; padding: 12px 14px; }
+  .masuko-card { background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); }
+  .buka-card { background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.2); }
+  .role-header { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+  .role-avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .masuko-avatar { background: rgba(16,185,129,0.2); color: var(--masuko); }
+  .buka-avatar { background: rgba(245,158,11,0.2); color: var(--buka); }
+  .role-name { font-size: 13px; font-weight: 700; }
+  .role-title { font-size: 10px; color: var(--text-muted); }
+  .action-list { list-style: none; }
+  .action-list li {
+    font-size: 12px;
+    color: var(--text);
+    padding: 4px 0;
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.5;
+    display: flex;
+    align-items: flex-start;
+  }
+  .action-list li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    font-size: 10px;
+    top: 5px;
+  }
+  .masuko-card .action-list li::before { color: var(--masuko); }
+  .buka-card .action-list li::before { color: var(--buka); }
+  .li-text { flex: 1; }
+
+  /* Focus companies */
+  .focus-section { background: var(--surface2); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .focus-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .company-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .company-chip {
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .priority-最重要 { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+  .priority-重要 { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.25); }
+  .priority-通常 { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
+  .chip-target { font-size: 10px; opacity: 0.7; }
+
+  /* Milestone */
+  .milestone { background: rgba(99,102,241,0.08); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; padding: 8px 12px; font-size: 12px; color: #a5b4fc; margin-top: 4px; }
+  .milestone strong { color: #c7d2fe; display: block; font-size: 11px; margin-bottom: 2px; }
+
+  /* Footer */
+  .footer { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  /* Notification dot */
+  .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* Saved toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #10b981;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: transform 0.3s;
+    z-index: 200;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .bp-filter {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .bp-filter:hover { background: var(--surface); }
+  .bp-filter.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+`;
+
+const MONTHLY_ACTIONS_BODY_HTML = `
+
+<!-- Version 3: BP獲得アタックリスト追加 / 役職名編集対応 -->
+<!-- Toolbar -->
+<div class="toolbar">
+  <span class="toolbar-title">🎯 下期 月別アクション通知</span>
+  <span class="edit-hint">✏️ テキストをクリックして編集できます</span>
+  <button class="btn btn-edit" id="editBtn" onclick="toggleEdit()">✏️ 編集モード</button>
+  <button class="btn btn-save" onclick="saveHTML()">💾 HTMLで保存</button>
+</div>
+
+<div id="plan-content">
+<div class="header">
+  <h1>🎯 下期 月別アクション通知</h1>
+  <div class="subtitle" contenteditable="false" data-key="k001">SIer二次請企業開拓 | 2026年10月〜2027年3月 | 益子チーム（2名体制）</div>
+</div>
+
+<!-- KGI Overview -->
+<div class="kgi-overview">
+  <div class="kgi-main">
+    <div class="kgi-label">KGI 稼働件数</div>
+    <div class="kgi-number"><span id="kgiTargetVal" contenteditable="false" data-key="k002">90</span> <span>名（改訂目標）</span></div>
+    <div id="kgiSubtitle" style="font-size:11px; color:var(--text-muted); margin-top:4px;">現在 24名 → 下期で +66名 追加が必要</div>
+    <div class="kgi-bar" style="margin-top:10px;"><div class="kgi-bar-fill" id="kgiBarFill" style="width:27%"></div></div>
+    <div id="kgiPercentText" style="font-size:10px; color:var(--text-muted); margin-top:4px;">27% 達成（2026年9月末時点）</div>
+  </div>
+  <div class="kgi-stats">
+    <div class="kgi-stat"><div class="kgi-stat-value green" id="statCurrent">24</div><div class="kgi-stat-label">現在稼働</div></div>
+    <div class="kgi-stat"><div class="kgi-stat-value orange" id="statRemain">66</div><div class="kgi-stat-label">残り目標</div></div>
+    <div class="kgi-stat"><div class="kgi-stat-value purple" id="statAvg">11</div><div class="kgi-stat-label">月平均必要</div></div>
+    <div class="kgi-stat"><div class="kgi-stat-value pink" contenteditable="false" data-key="k003">2</div><div class="kgi-stat-label">チーム人数</div></div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot dot-masuko"></div><span contenteditable="false" data-key="k004">益子（マネージャー）</span></div>
+  <div class="legend-item"><div class="legend-dot dot-buka"></div><span contenteditable="false" data-key="k005">部下（担当）</span></div>
+</div>
+
+<!-- Q3 Label -->
+<div class="quarter-label">
+  <span class="q-badge q3-badge">Q3</span>
+  <span class="q-theme" contenteditable="false" data-key="k006">2026年10〜12月 ／ 面談集中・クロージング加速</span>
+</div>
+
+<!-- October 2026 -->
+<div class="month-card open" id="card-oct">
+  <div class="month-header" onclick="handleHeaderClick(event,'card-oct')">
+    <div class="month-left">
+      <div class="month-icon q3-icon">🍂</div>
+      <div>
+        <div class="month-title">2026年10月</div>
+        <div class="month-sub" contenteditable="false" data-key="k007">Q3スタート ／ 下期始動月</div>
+      </div>
     </div>
+    <div class="month-right">
+      <div class="month-target">
+        <div class="month-target-num" style="color:#818cf8" contenteditable="false" data-key="k008">35名</div>
+        <div class="month-target-label">月末累計目標</div>
+      </div>
+      <div class="month-progress">
+        <div class="prog-bar"><div class="prog-fill" style="width:39%"></div></div>
+        <span contenteditable="false" data-key="k009">39%</span>
+      </div>
+      <div class="chevron">▼</div>
+    </div>
+  </div>
+  <div class="month-body">
+    <div class="kpi-row">
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k010">+11名</span><span class="kpi-lbl">今月新規目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k011">25回</span><span class="kpi-lbl">面談実施目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k012">130件</span><span class="kpi-lbl">候補提示目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k013">27件</span><span class="kpi-lbl">案件数目標</span></div>
+    </div>
+    <div class="role-sections">
+      <div class="role-card masuko-card">
+        <div class="role-header">
+          <div class="role-avatar masuko-avatar">益</div>
+          <div><div class="role-name" contenteditable="false" data-key="k014">益子</div><div class="role-title" contenteditable="false" data-key="k015">マネージャー ／ 最重要企業担当</div></div>
+        </div>
+        <ul class="action-list" id="oct-masuko">
+          <li><span class="li-text" contenteditable="false" data-key="k016">部下に担当企業を正式割り当て・OJT開始（週1回1on1設定）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k017">BREXAへ10月面談枠10名分を確保。フリーランスサービス部中心にクロージング</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k018">eSOL BPパートナー経由で新規案件5件取り込み（9/2懇親会フォロー）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k019">NTTドコモビジネス 9/16 MTG後の次回提案日程確定・候補者2名リスト化</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k020">下期KPI進捗を週次でダッシュボード確認・部下に共有</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('oct-masuko')">＋ 行動を追加</button></div>
+      </div>
+      <div class="role-card buka-card">
+        <div class="role-header">
+          <div class="role-avatar buka-avatar">部</div>
+          <div><div class="role-name" contenteditable="false" data-key="k021">部下</div><div class="role-title" contenteditable="false" data-key="k022">担当 ／ 重要企業実行</div></div>
+        </div>
+        <ul class="action-list" id="oct-buka">
+          <li><span class="li-text" contenteditable="false" data-key="k023">担当企業（NTTデータ・ウィズ・クロスリスティング・NTTテクノクロス）の現状把握ヒアリング</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k024">クロスリスティング：派遣契約OK確認済→候補者2名選定・提案資料作成</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k025">NTTデータ・ウィズ：Q2遅延分のリカバリ候補者3名ピックアップ</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k026">NTTドコモビジネスX・NTTデータNJK：担当者連絡・10月訪問アポ取得</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k027">週次で益子に進捗報告（月曜朝10分）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('oct-buka')">＋ 行動を追加</button></div>
+      </div>
+    </div>
+          </div>
+    <div class="milestone">
+      <strong>📌 月末チェックポイント</strong>
+      <span contenteditable="false" data-key="k028">累計35名達成 ／ 部下が担当企業の初訪問を全社完了 ／ BREXA・eSOLの面談パイプライン確立</span>
+    </div>
+  </div>
+</div>
+
+<!-- November 2026 -->
+<div class="month-card" id="card-nov">
+  <div class="month-header" onclick="handleHeaderClick(event,'card-nov')">
+    <div class="month-left">
+      <div class="month-icon q3-icon">🌿</div>
+      <div>
+        <div class="month-title">2026年11月</div>
+        <div class="month-sub" contenteditable="false" data-key="k029">Q3中盤 ／ 面談ピーク月</div>
+      </div>
+    </div>
+    <div class="month-right">
+      <div class="month-target">
+        <div class="month-target-num" style="color:#818cf8" contenteditable="false" data-key="k030">46名</div>
+        <div class="month-target-label">月末累計目標</div>
+      </div>
+      <div class="month-progress">
+        <div class="prog-bar"><div class="prog-fill" style="width:51%"></div></div>
+        <span contenteditable="false" data-key="k031">51%</span>
+      </div>
+      <div class="chevron">▼</div>
+    </div>
+  </div>
+  <div class="month-body">
+    <div class="kpi-row">
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k032">+11名</span><span class="kpi-lbl">今月新規目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k033">26回</span><span class="kpi-lbl">面談実施目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k034">130件</span><span class="kpi-lbl">候補提示目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k035">27件</span><span class="kpi-lbl">案件数目標</span></div>
+    </div>
+    <div class="role-sections">
+      <div class="role-card masuko-card">
+        <div class="role-header">
+          <div class="role-avatar masuko-avatar">益</div>
+          <div><div class="role-name" contenteditable="false" data-key="k036">益子</div><div class="role-title" contenteditable="false" data-key="k037">マネージャー ／ 最重要企業担当</div></div>
+        </div>
+        <ul class="action-list" id="nov-masuko">
+          <li><span class="li-text" contenteditable="false" data-key="k038">BREXAへ追加DXコンサルティング部・AIソリューション推進部への新規提案開始</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k039">eSOL BP経由で獲得した案件の候補者マッチング・面談実施（目標4名着手）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k040">NTTドコモビジネス：デジタル改革推進部への候補者2名提案。法人DXソリューション部も並行探索</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k041">スリーシェイク・AGEST等 既存稼働企業への追加案件ヒアリング</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k042">部下の中間進捗レビュー → 遅延企業があれば担当交代or支援を判断</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('nov-masuko')">＋ 行動を追加</button></div>
+      </div>
+      <div class="role-card buka-card">
+        <div class="role-header">
+          <div class="role-avatar buka-avatar">部</div>
+          <div><div class="role-name" contenteditable="false" data-key="k043">部下</div><div class="role-title" contenteditable="false" data-key="k044">担当 ／ 重要企業実行</div></div>
+        </div>
+        <ul class="action-list" id="nov-buka">
+          <li><span class="li-text" contenteditable="false" data-key="k045">クロスリスティング：ADマネジメント本部・プロダクト開発部へ候補者面談実施（2名クロージング）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k046">NTTデータ・ウィズ：デジタルストラテジー事業本部にBPOスキル人材を提案</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k047">NTTテクノクロス：IOWNクロスバリュー・AI事業部への候補者2名提案（頓挫案件再起動）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k048">NTTデータNJK：初回訪問後の要件定義MTGセッティング</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k049">候補者データベース強化：下期想定スキルセットのピックアップ（30名分）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('nov-buka')">＋ 行動を追加</button></div>
+      </div>
+    </div>
+          </div>
+    <div class="milestone">
+      <strong>📌 月末チェックポイント</strong>
+      <span contenteditable="false" data-key="k050">累計46名達成 ／ Q3 KPI達成ペースを確認（面談77回の半数40回以上） ／ クロスリスティング初回稼働スタート</span>
+    </div>
+  </div>
+</div>
+
+<!-- December 2026 -->
+<div class="month-card" id="card-dec">
+  <div class="month-header" onclick="handleHeaderClick(event,'card-dec')">
+    <div class="month-left">
+      <div class="month-icon q3-icon">❄️</div>
+      <div>
+        <div class="month-title">2026年12月</div>
+        <div class="month-sub" contenteditable="false" data-key="k051">Q3クローズ ／ クロージング全集中</div>
+      </div>
+    </div>
+    <div class="month-right">
+      <div class="month-target">
+        <div class="month-target-num" style="color:#818cf8" contenteditable="false" data-key="k052">57名</div>
+        <div class="month-target-label">月末累計目標</div>
+      </div>
+      <div class="month-progress">
+        <div class="prog-bar"><div class="prog-fill" style="width:63%"></div></div>
+        <span contenteditable="false" data-key="k053">63%</span>
+      </div>
+      <div class="chevron">▼</div>
+    </div>
+  </div>
+  <div class="month-body">
+    <div class="kpi-row">
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k054">+11名</span><span class="kpi-lbl">今月新規目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k055">26回</span><span class="kpi-lbl">面談実施目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k056">126件</span><span class="kpi-lbl">候補提示目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k057">27件</span><span class="kpi-lbl">案件数目標</span></div>
+    </div>
+    <div class="role-sections">
+      <div class="role-card masuko-card">
+        <div class="role-header">
+          <div class="role-avatar masuko-avatar">益</div>
+          <div><div class="role-name" contenteditable="false" data-key="k058">益子</div><div class="role-title" contenteditable="false" data-key="k059">マネージャー ／ 最重要企業担当</div></div>
+        </div>
+        <ul class="action-list" id="dec-masuko">
+          <li><span class="li-text" contenteditable="false" data-key="k060">BREXA：年内着手を目指す候補者のクロージング（内定・稼働スタート）優先</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k061">eSOL：BP経由案件の候補者に稼働OKを取得。年度替わりに向けた追加ニーズ確認</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k062">NTTドコモビジネス：提案した候補者の面談実施。年内合意を目指す</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k063">Q4に向けた顧問連携先との関係性を整備（志賀さんとの作戦会議）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k064">Q3全体のKGI達成状況を整理し、Q4の修正アクション計画を作成</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('dec-masuko')">＋ 行動を追加</button></div>
+      </div>
+      <div class="role-card buka-card">
+        <div class="role-header">
+          <div class="role-avatar buka-avatar">部</div>
+          <div><div class="role-name" contenteditable="false" data-key="k065">部下</div><div class="role-title" contenteditable="false" data-key="k066">担当 ／ 重要企業実行</div></div>
+        </div>
+        <ul class="action-list" id="dec-buka">
+          <li><span class="li-text" contenteditable="false" data-key="k067">NTTデータ・ウィズ：年内内定に向けた面談クロージング（調達・パートナー推進部3名目標）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k068">NTTドコモビジネスX：要件確定後、候補者2名の面談実施</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k069">NTTテクノクロス：提案候補者の面談実施・年内合意取得</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k070">NTTデータNJK：要件定義完了→候補者1名選定・提案</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k071">Q4着手に向けた新規パイプライン（候補者50名分）構築</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('dec-buka')">＋ 行動を追加</button></div>
+      </div>
+    </div>
+          </div>
+    <div class="milestone">
+      <strong>📌 Q3クローズ チェックポイント</strong>
+      <span contenteditable="false" data-key="k072">累計57名（KGI目標の63%）達成 ／ 年内稼働確定者リスト共有 ／ Q4修正アクション計画確定</span>
+    </div>
+  </div>
+</div>
+
+<!-- Q4 Label -->
+<div class="quarter-label" style="margin-top:20px;">
+  <span class="q-badge q4-badge">Q4</span>
+  <span class="q-theme" contenteditable="false" data-key="k073">2027年1〜3月 ／ 刈り取り・KGI達成</span>
+</div>
+
+<!-- January 2027 -->
+<div class="month-card" id="card-jan">
+  <div class="month-header" onclick="handleHeaderClick(event,'card-jan')">
+    <div class="month-left">
+      <div class="month-icon q4-icon">🌸</div>
+      <div>
+        <div class="month-title">2027年1月</div>
+        <div class="month-sub" contenteditable="false" data-key="k074">Q4スタート ／ 刈り取り本格化</div>
+      </div>
+    </div>
+    <div class="month-right">
+      <div class="month-target">
+        <div class="month-target-num" style="color:#f472b6" contenteditable="false" data-key="k075">68名</div>
+        <div class="month-target-label">月末累計目標</div>
+      </div>
+      <div class="month-progress">
+        <div class="prog-bar"><div class="prog-fill" style="width:76%; background: linear-gradient(90deg,#ec4899,#f472b6);"></div></div>
+        <span contenteditable="false" data-key="k076">76%</span>
+      </div>
+      <div class="chevron">▼</div>
+    </div>
+  </div>
+  <div class="month-body">
+    <div class="kpi-row">
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k077">+11名</span><span class="kpi-lbl">今月新規目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k078">30回</span><span class="kpi-lbl">面談実施目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k079">152件</span><span class="kpi-lbl">候補提示目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k080">32件</span><span class="kpi-lbl">案件数目標</span></div>
+    </div>
+    <div class="role-sections">
+      <div class="role-card masuko-card">
+        <div class="role-header">
+          <div class="role-avatar masuko-avatar">益</div>
+          <div><div class="role-name" contenteditable="false" data-key="k081">益子</div><div class="role-title" contenteditable="false" data-key="k082">マネージャー ／ 最重要企業担当</div></div>
+        </div>
+        <ul class="action-list" id="jan-masuko">
+          <li><span class="li-text" contenteditable="false" data-key="k083">BREXA：Q4向けにDXコンサル部・AI推進部の新規5名枠確保。年明け面談即開始</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k084">eSOL：4名追加枠に対して、BP紹介案件・直接案件双方でパイプライン確保</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k085">NTTドコモビジネス：法人DX・クラウドセキュリティ部門への候補者提案（2名）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k086">フォーティエンスコンサルティング：3ヶ月フォローアップMTGで追加1名案件化</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k087">Q4 KGI到達に向けたチーム目標の再設定・月次面談で部下モチベーション管理</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('jan-masuko')">＋ 行動を追加</button></div>
+      </div>
+      <div class="role-card buka-card">
+        <div class="role-header">
+          <div class="role-avatar buka-avatar">部</div>
+          <div><div class="role-name" contenteditable="false" data-key="k088">部下</div><div class="role-title" contenteditable="false" data-key="k089">担当 ／ 重要企業実行</div></div>
+        </div>
+        <ul class="action-list" id="jan-buka">
+          <li><span class="li-text" contenteditable="false" data-key="k090">NTTデータ・ウィズ：BPOサービス事業本部へ追加2名提案・面談実施</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k091">NTTドコモビジネスX：ICTソリューション事業部へ候補者面談（2名目標）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k092">NTTテクノクロス：クロスプラットフォーム事業部への追加提案</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k093">アテック・LINK AI・AGEST：稼働実績をもとに追加案件ニーズ掘り起こし</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k094">スリーシェイク：調達部への追加2名打診（現在2名稼働の深耕）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('jan-buka')">＋ 行動を追加</button></div>
+      </div>
+    </div>
+          </div>
+    <div class="milestone">
+      <strong>📌 月末チェックポイント</strong>
+      <span contenteditable="false" data-key="k095">累計68名達成 ／ BREXA・eSOLのQ4分面談パイプライン完備 ／ 残り22名への道筋確定</span>
+    </div>
+  </div>
+</div>
+
+<!-- February 2027 -->
+<div class="month-card" id="card-feb">
+  <div class="month-header" onclick="handleHeaderClick(event,'card-feb')">
+    <div class="month-left">
+      <div class="month-icon q4-icon">💐</div>
+      <div>
+        <div class="month-title">2027年2月</div>
+        <div class="month-sub" contenteditable="false" data-key="k096">Q4中盤 ／ 全社クロージング</div>
+      </div>
+    </div>
+    <div class="month-right">
+      <div class="month-target">
+        <div class="month-target-num" style="color:#f472b6" contenteditable="false" data-key="k097">79名</div>
+        <div class="month-target-label">月末累計目標</div>
+      </div>
+      <div class="month-progress">
+        <div class="prog-bar"><div class="prog-fill" style="width:88%; background: linear-gradient(90deg,#ec4899,#f472b6);"></div></div>
+        <span contenteditable="false" data-key="k098">88%</span>
+      </div>
+      <div class="chevron">▼</div>
+    </div>
+  </div>
+  <div class="month-body">
+    <div class="kpi-row">
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k099">+11名</span><span class="kpi-lbl">今月新規目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k100">30回</span><span class="kpi-lbl">面談実施目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k101">153件</span><span class="kpi-lbl">候補提示目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k102">32件</span><span class="kpi-lbl">案件数目標</span></div>
+    </div>
+    <div class="role-sections">
+      <div class="role-card masuko-card">
+        <div class="role-header">
+          <div class="role-avatar masuko-avatar">益</div>
+          <div><div class="role-name" contenteditable="false" data-key="k103">益子</div><div class="role-title" contenteditable="false" data-key="k104">マネージャー ／ 最重要企業担当</div></div>
+        </div>
+        <ul class="action-list" id="feb-masuko">
+          <li><span class="li-text" contenteditable="false" data-key="k105">BREXA・eSOLのパイプライン候補者を全力でクロージング（内定→稼働確定）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k106">NTTドコモビジネス：3月着手に向けた候補者の内定確定と契約手続き推進</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k107">90名達成に向けた進捗差異分析→遅延企業へのリカバリプラン発動</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k108">NTTデータ・ウィズ：BPOサービス本部への候補者着地確認</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k109">部下の成果物レビュー・来期の体制強化に向けた評価面談準備</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('feb-masuko')">＋ 行動を追加</button></div>
+      </div>
+      <div class="role-card buka-card">
+        <div class="role-header">
+          <div class="role-avatar buka-avatar">部</div>
+          <div><div class="role-name" contenteditable="false" data-key="k110">部下</div><div class="role-title" contenteditable="false" data-key="k111">担当 ／ 重要企業実行</div></div>
+        </div>
+        <ul class="action-list" id="feb-buka">
+          <li><span class="li-text" contenteditable="false" data-key="k112">クロスリスティング：DATAソリューション事業部への追加1名面談実施</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k113">NTTテクノクロス：AI・データビジネス推進部 残2名のクロージング</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k114">NTTデータNJK：Q3からの案件を継続クロージング（残1名）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k115">NTTドコモビジネスX：3月稼働開始に向けた内定確定・契約手続き</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k116">新規パイプライン開拓（NTTデータグループ内の未開拓部署へのアプローチ）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('feb-buka')">＋ 行動を追加</button></div>
+      </div>
+    </div>
+          </div>
+    <div class="milestone">
+      <strong>📌 月末チェックポイント</strong>
+      <span contenteditable="false" data-key="k117">累計79名達成（KGI88%） ／ 3月スタート予定者を含む内定確定者リスト整備 ／ 残11名の3月達成計画確定</span>
+    </div>
+  </div>
+</div>
+
+<!-- March 2027 -->
+<div class="month-card" id="card-mar">
+  <div class="month-header" onclick="handleHeaderClick(event,'card-mar')">
+    <div class="month-left">
+      <div class="month-icon q4-icon">🎊</div>
+      <div>
+        <div class="month-title">2027年3月</div>
+        <div class="month-sub" contenteditable="false" data-key="k118">Q4クローズ ／ KGI 90名 達成月</div>
+      </div>
+    </div>
+    <div class="month-right">
+      <div class="month-target">
+        <div class="month-target-num" style="color:#f59e0b" contenteditable="false" data-key="k119">90名</div>
+        <div class="month-target-label">KGI達成目標</div>
+      </div>
+      <div class="month-progress">
+        <div class="prog-bar"><div class="prog-fill" style="width:100%; background: linear-gradient(90deg,#f59e0b,#fbbf24);"></div></div>
+        <span contenteditable="false" data-key="k120">100%</span>
+      </div>
+      <div class="chevron">▼</div>
+    </div>
+  </div>
+  <div class="month-body">
+    <div class="kpi-row">
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k121">+11名</span><span class="kpi-lbl">今月新規目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k122">31回</span><span class="kpi-lbl">面談実施目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k123">152件</span><span class="kpi-lbl">候補提示目標</span></div>
+      <div class="kpi-chip"><span class="kpi-val" contenteditable="false" data-key="k124">32件</span><span class="kpi-lbl">案件数目標</span></div>
+    </div>
+    <div class="role-sections">
+      <div class="role-card masuko-card">
+        <div class="role-header">
+          <div class="role-avatar masuko-avatar">益</div>
+          <div><div class="role-name" contenteditable="false" data-key="k125">益子</div><div class="role-title" contenteditable="false" data-key="k126">マネージャー ／ 最重要企業担当</div></div>
+        </div>
+        <ul class="action-list" id="mar-masuko">
+          <li><span class="li-text" contenteditable="false" data-key="k127">全稼働予定者の3月1日スタートを確認・契約書・業務委託確定</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k128">BREXA・eSOL・NTTドコモビジネスの残クロージング全完了</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k129">KGI 90名を最終確認→必要なら追加候補者の緊急手配</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k130">来期（4月以降）に向けた顧問連携・既存企業深耕の中期計画を策定</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k131">部下の下期成果評価レポート作成・次期目標設定</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('mar-masuko')">＋ 行動を追加</button></div>
+      </div>
+      <div class="role-card buka-card">
+        <div class="role-header">
+          <div class="role-avatar buka-avatar">部</div>
+          <div><div class="role-name" contenteditable="false" data-key="k132">部下</div><div class="role-title" contenteditable="false" data-key="k133">担当 ／ 重要企業実行</div></div>
+        </div>
+        <ul class="action-list" id="mar-buka">
+          <li><span class="li-text" contenteditable="false" data-key="k134">担当全社の稼働スタート確認・初月フォローアップ対応</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k135">NTTドコモビジネスX・NTTデータNJKの最終着地確認と稼働報告</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k136">3月末KGIが不足する場合、緊急候補者提案を益子と共同対応</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k137">来期に向けた担当企業の関係構築計画書を作成</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+          <li><span class="li-text" contenteditable="false" data-key="k138">下期活動ログを整理・振り返りレポート作成（siaction記録）</span><button class="del-btn" onclick="delLi(this)">✕</button></li>
+        </ul>
+        <div class="add-action-row"><button class="btn btn-add" onclick="addLi('mar-buka')">＋ 行動を追加</button></div>
+      </div>
+    </div>
+          </div>
+    <div class="milestone" style="background: rgba(245,158,11,0.08); border-color: var(--buka); color: #fcd34d;">
+      <strong>🏆 KGI達成チェックポイント</strong>
+      <span contenteditable="false" data-key="k139">稼働90名達成 ／ 全稼働者の稼働スタート確認 ／ 次期中期計画策定完了</span>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  SIer二次請企業開拓 ｜ KGI 90名（改訂）達成計画 ｜ 益子チーム 2名体制<br>
+  <span id="footerStatLine">現在稼働24名 → 2027年3月末 90名 ｜ 月平均+11名ペース</span>
+</div>
+</div>
+
+<div class="toast" id="toast">✅ HTMLを保存しました</div>
+
+
+<!-- BP Attack List Section -->
+<div style="margin-top:40px;">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+    <h2 style="font-size:18px;font-weight:700;background:linear-gradient(135deg,#10b981,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">🎯 BP獲得アタックリスト</h2>
+    <span style="font-size:11px;color:var(--text-muted);background:var(--surface2);padding:3px 10px;border-radius:20px;border:1px solid var(--border);">組込み系企業 関東 52社</span>
+  </div>
+
+  <!-- Controls -->
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+    <input type="text" id="bpSearch" placeholder="🔍 会社名・技術で検索..." oninput="renderBP()" style="flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;">
+    <div style="display:flex;gap:4px;">
+      <button class="bp-filter active" data-p="all" onclick="setPFilter(this,'all')">全て</button>
+      <button class="bp-filter" data-p="A" onclick="setPFilter(this,'A')">A 即アプローチ</button>
+      <button class="bp-filter" data-p="B" onclick="setPFilter(this,'B')">B 中期</button>
+      <button class="bp-filter" data-p="C" onclick="setPFilter(this,'C')">C 情報収集</button>
+    </div>
+  </div>
+
+  <div id="bp-count" style="font-size:11px;color:var(--text-muted);margin-bottom:8px;"></div>
+
+  <!-- Table -->
+  <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border);">
+    <table id="bpTable" style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:var(--surface2);border-bottom:1px solid var(--border);">
+          <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600;white-space:nowrap;">優先</th>
+          <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600;">会社名</th>
+          <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600;white-space:nowrap;">所在</th>
+          <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600;">主要技術</th>
+          <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600;">アライアンス観点</th>
+          <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600;white-space:nowrap;">AI</th>
+          <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600;white-space:nowrap;">ステータス</th>
+          <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600;">Webサイト</th>
+        </tr>
+      </thead>
+      <tbody id="bpBody"></tbody>
+    </table>
+  </div>
+  <div style="margin-top:8px;font-size:10px;color:var(--text-muted);">
+    ※ ステータスは編集モードONでセルをクリック→選択・変更できます。保存は「HTMLで保存」ボタン。
+  </div>
+</div>
+
+`;
+
+const MonthlyActionsView = () => {
+  useEffect(() => {
+
+    let editMode = false;
+
+    const MONTHLY_ROW_ID = "main"; // monthly_action_data テーブルの単一行ID
+
+    // このページの編集可能テキスト139箇所に割り振られた固定キー一覧。
+    // 今後この一覧にない新しい編集項目を追加する場合は、末尾に新しいキーを足すだけでよく、
+    // 既存キーの保存データには一切影響しません（構造を変えても既存の編集内容は消えません）。
+    const ALL_STATIC_KEYS = ["k001", "k002", "k003", "k004", "k005", "k006", "k007", "k008", "k009", "k010", "k011", "k012", "k013", "k014", "k015", "k016", "k017", "k018", "k019", "k020", "k021", "k022", "k023", "k024", "k025", "k026", "k027", "k028", "k029", "k030", "k031", "k032", "k033", "k034", "k035", "k036", "k037", "k038", "k039", "k040", "k041", "k042", "k043", "k044", "k045", "k046", "k047", "k048", "k049", "k050", "k051", "k052", "k053", "k054", "k055", "k056", "k057", "k058", "k059", "k060", "k061", "k062", "k063", "k064", "k065", "k066", "k067", "k068", "k069", "k070", "k071", "k072", "k073", "k074", "k075", "k076", "k077", "k078", "k079", "k080", "k081", "k082", "k083", "k084", "k085", "k086", "k087", "k088", "k089", "k090", "k091", "k092", "k093", "k094", "k095", "k096", "k097", "k098", "k099", "k100", "k101", "k102", "k103", "k104", "k105", "k106", "k107", "k108", "k109", "k110", "k111", "k112", "k113", "k114", "k115", "k116", "k117", "k118", "k119", "k120", "k121", "k122", "k123", "k124", "k125", "k126", "k127", "k128", "k129", "k130", "k131", "k132", "k133", "k134", "k135", "k136", "k137", "k138", "k139"];
+
+    let bpStatuses = {};
+    let bpWebOverrides = {};
+    let monthlyDataReady = false;
+
+    async function saveMonthlyData(partial) {
+      try {
+        await supabase.from("monthly_action_data").upsert({
+          id: MONTHLY_ROW_ID,
+          ...partial,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        // ネットワークエラー時は保存できないが、画面上の編集内容は残る
+        console.error("monthly_action_data save failed", e);
+      }
+    }
+
+    // 現在の画面から「編集内容」だけを、要素ごとの固定キーで抜き出す（丸ごとHTMLではなく項目単位で保存）
+    function collectPlanFields() {
+      const root = document.getElementById('plan-content');
+      const fieldText = {};
+      const addedItems = [];
+      if (!root) return { fieldText, addedItems, removedKeys: [] };
+
+      const presentStaticKeys = new Set();
+      root.querySelectorAll('[data-key]').forEach(el => {
+        const key = el.getAttribute('data-key');
+        fieldText[key] = el.innerHTML;
+        if (el.getAttribute('data-added') === 'true') {
+          const li = el.closest('li');
+          const ul = li ? li.closest('ul') : null;
+          addedItems.push({ key, listId: ul ? ul.id : '' });
+        } else {
+          presentStaticKeys.add(key);
+        }
+      });
+      const removedKeys = ALL_STATIC_KEYS.filter(k => !presentStaticKeys.has(k));
+
+      return { fieldText, addedItems, removedKeys };
+    }
+
+    function savePlanContent() {
+      const fields = collectPlanFields();
+      saveMonthlyData({ plan_content_fields: fields });
+    }
+
+    // 保存された「項目単位のデータ」を、今のページ構造に対して適用する。
+    // テンプレート側の見た目・構造をあとから変更しても、キーが一致する項目の中身はそのまま復元される。
+    function applyPlanFields(fields) {
+      const root = document.getElementById('plan-content');
+      if (!root || !fields) return;
+      const fieldText = fields.fieldText || {};
+      const removedKeys = fields.removedKeys || [];
+      const addedItems = fields.addedItems || [];
+
+      // 1. ユーザーが削除していた元テンプレ項目を、今回のテンプレートからも削除
+      removedKeys.forEach(key => {
+        const el = root.querySelector(`[data-key="${key}"]`);
+        if (el) { const li = el.closest('li'); (li || el).remove(); }
+      });
+
+      // 2. 今も存在する項目のテキストを、保存内容で復元
+      root.querySelectorAll('[data-key]').forEach(el => {
+        const key = el.getAttribute('data-key');
+        if (fieldText[key] !== undefined) el.innerHTML = fieldText[key];
+      });
+
+      // 3. ユーザーが追加した項目（行動リストの＋で追加した行など）を再構築
+      addedItems.forEach(item => {
+        const ul = document.getElementById(item.listId);
+        if (!ul) return; // 対象のリスト自体が無くなっていた場合はスキップ
+        const li = document.createElement('li');
+        const span = document.createElement('span');
+        span.className = 'li-text';
+        span.setAttribute('data-key', item.key);
+        span.setAttribute('data-added', 'true');
+        span.contentEditable = editMode ? 'true' : 'false';
+        span.innerHTML = fieldText[item.key] !== undefined ? fieldText[item.key] : '';
+        const delBtn = document.createElement('button');
+        delBtn.className = 'del-btn';
+        delBtn.textContent = '✕';
+        delBtn.setAttribute('onclick', 'delLi(this)');
+        li.appendChild(span);
+        li.appendChild(delBtn);
+        ul.appendChild(li);
+      });
+    }
+
+    async function loadMonthlyData() {
+      try {
+        const { data, error } = await supabase
+          .from("monthly_action_data")
+          .select("*")
+          .eq("id", MONTHLY_ROW_ID)
+          .maybeSingle();
+        if (!error && data) {
+          applyPlanFields(data.plan_content_fields);
+          bpStatuses = data.bp_statuses || {};
+          bpWebOverrides = data.bp_web_overrides || {};
+        }
+      } catch (e) {
+        console.error("monthly_action_data load failed", e);
+      }
+      monthlyDataReady = true;
+      renderBP();       // データ取得後にBPリストを描画
+      loadLiveKgiStats(); // KGI稼働数もあわせて反映
+    }
+
+    // (loadMonthlyData is invoked directly below, after all functions are defined)
+
+    // 「編集完了」ボタンを押し忘れても消えないよう、入力のたびに自動保存する
+    let planSaveTimer = null;
+    function debouncedSavePlanContent() {
+      clearTimeout(planSaveTimer);
+      planSaveTimer = setTimeout(savePlanContent, 600);
+    }
+    const handleGlobalInput = (e) => {
+      if (e.target && e.target.isContentEditable) debouncedSavePlanContent();
+    };
+    const handleGlobalBlur = (e) => {
+      if (e.target && e.target.isContentEditable) savePlanContent();
+    };
+    document.addEventListener('input', handleGlobalInput);
+    document.addEventListener('blur', handleGlobalBlur, true); // blurはバブリングしないためcaptureで拾う
+
+    // ── 稼働者管理ページ（Supabase engineersテーブル）と連動した現在稼働数の自動反映 ──
+    const KGI_MONTHS_REMAINING = 6; // 下期(2026年10月〜2027年3月)の残り月数
+    let liveCurrentCount = null;
+
+    function updateKgiStatsDisplay() {
+      if (liveCurrentCount === null) return;
+      const ids = ['kgiTargetVal','statCurrent','statRemain','statAvg','kgiSubtitle','kgiBarFill','kgiPercentText','footerStatLine'];
+      const el = {};
+      for (const id of ids) { el[id] = document.getElementById(id); if (!el[id]) return; } // 要素が見つからない場合は何もしない
+      const target = parseInt(el.kgiTargetVal.textContent, 10) || 90;
+      const remain = Math.max(target - liveCurrentCount, 0);
+      const avg = Math.ceil(remain / KGI_MONTHS_REMAINING);
+      const pct = target > 0 ? Math.min(Math.round((liveCurrentCount / target) * 100), 100) : 0;
+
+      el.statCurrent.textContent = liveCurrentCount;
+      el.statRemain.textContent = remain;
+      el.statAvg.textContent = avg;
+      el.kgiSubtitle.textContent = `現在 ${liveCurrentCount}名 → 下期で +${remain}名 追加が必要`;
+      el.kgiBarFill.style.width = pct + '%';
+      el.kgiPercentText.textContent = `${pct}% 達成（稼働者管理ページと連動・自動更新）`;
+      el.footerStatLine.textContent = `現在稼働${liveCurrentCount}名 → 2027年3月末 ${target}名 ｜ 月平均+${avg}名ペース`;
+    }
+
+    async function loadLiveKgiStats() {
+      try {
+        const { count, error } = await supabase
+          .from('engineers')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', '稼働中');
+        if (error || count === null) return; // 取得失敗時は元の静的な数値のまま表示
+        liveCurrentCount = count;
+        updateKgiStatsDisplay();
+      } catch (e) {
+        // ネットワークエラー時は何もしない（元の数値のまま）
+      }
+    }
+
+    const kgiTargetElForBlur = document.getElementById('kgiTargetVal');
+    if (kgiTargetElForBlur) kgiTargetElForBlur.addEventListener('blur', updateKgiStatsDisplay);
+
+    function toggleEdit() {
+      editMode = !editMode;
+      document.body.classList.toggle('edit-mode', editMode);
+      const btn = document.getElementById('editBtn');
+      btn.classList.toggle('active', editMode);
+      btn.textContent = editMode ? '✅ 編集完了' : '✏️ 編集モード';
+
+      // contenteditable の切り替え
+      document.querySelectorAll('[contenteditable]').forEach(el => {
+        el.contentEditable = editMode ? 'true' : 'false';
+      });
+
+      // 編集モードを終了するタイミングで、変更内容をブラウザに保存する
+      if (!editMode) savePlanContent();
+      // BPリストのWebサイト欄（入力欄⇔リンク表示）を切り替え
+      if (typeof renderBP === 'function') renderBP();
+    }
+
+    function handleHeaderClick(e, id) {
+      // 編集モード中は contenteditable 要素クリックでトグルしない
+      if (editMode && e.target.hasAttribute && e.target.contentEditable === 'true') return;
+      if (editMode && e.target.closest('[contenteditable="true"]')) return;
+      toggle(id);
+    }
+
+    function toggle(id) {
+      const card = document.getElementById(id);
+      card.classList.toggle('open');
+    }
+
+    function delLi(btn) {
+      btn.closest('li').remove();
+      savePlanContent();
+    }
+
+    function addLi(listId) {
+      const ul = document.getElementById(listId);
+      const li = document.createElement('li');
+      const newKey = 'kNew' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      li.innerHTML = `<span class="li-text" contenteditable="true" data-key="${newKey}" data-added="true">新しい行動を入力...</span><button class="del-btn" onclick="delLi(this)">✕</button>`;
+      ul.appendChild(li);
+      savePlanContent();
+      // フォーカス
+      setTimeout(() => {
+        const span = li.querySelector('.li-text');
+        span.focus();
+        const range = document.createRange();
+        range.selectNodeContents(span);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+      }, 50);
+    }
+
+    function saveHTML() {
+      // 編集モード一時解除してHTMLを取得
+      const wasEditing = editMode;
+      if (wasEditing) toggleEdit();
+
+      const html = '<!DOCTYPE html>\n<html lang="ja">\n' + document.documentElement.innerHTML + '\n</html>';
+
+      if (wasEditing) toggleEdit();
+
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'monthly-actions-plan.html';
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      const toast = document.getElementById('toast');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    const STATUSES = ['未接触','検討中','アプローチ済','商談中','アライアンス締結','見送り'];
+    const BP_LIST = [
+      {no:1,name:'ナイン・アルファ合同会社',pref:'神奈川県',scale:'小規模（数名）',tech:'組込みソフト／デバイスドライバ／無線（Wi-Fi・BT・RFID/NFC）／HW設計',alliance:'少数精鋭。車載・家電・精密機器の実績多数。フリーランスと親和性が高い',web:'（要確認）',priority:'A',status:'未接触',ai:'-'},
+      {no:2,name:'株式会社ソールテック',pref:'東京都',scale:'小規模',tech:'組込みシステム／医療機器制御／セキュリティ装置／通信監視装置',alliance:'医療・セキュリティ・通信の受託実績豊富。制御＋サーバー両対応',web:'https://www.soul-tech.co.jp/',priority:'A',status:'未接触',ai:'○'},
+      {no:3,name:'株式会社ウッドペッカー',pref:'神奈川県',scale:'小規模',tech:'組込みシステム／既存システム解析・改修／大規模制御',alliance:'既存システム解析を得意とし、改修・保守案件が多い',web:'（要確認）',priority:'A',status:'未接触',ai:'-'},
+      {no:4,name:'株式会社WILLTECH',pref:'東京都',scale:'小規模',tech:'組込みソフト／デジタル家電／PLC制御／車載IVI／産業機械FA',alliance:'大手電機・自動車メーカー出身者集団。品質管理体制が強固',web:'（要確認）',priority:'A',status:'未接触',ai:'△'},
+      {no:5,name:'株式会社アヴァンザ',pref:'東京都',scale:'小〜中規模',tech:'組込みソフト＋HW／RFID・ICタグ／画像認識／リアルタイム制御',alliance:'ソフトのみならずHW選定・カスタムHW開発まで対応。RFID系に強み',web:'https://www.avanza.co.jp/',priority:'A',status:'未接触',ai:'○'},
+      {no:6,name:'ナパソリューションズ株式会社',pref:'東京都',scale:'小規模',tech:'車載システム／カーナビ・ECU開発／MBD（モデルベース開発）',alliance:'車載特化。MBD活用でコスト削減提案が可能。ベトナム合弁',web:'https://www.napa-solutions.jp/',priority:'A',status:'未接触',ai:'△'},
+      {no:7,name:'株式会社サン・メルクス',pref:'東京都',scale:'小〜中規模',tech:'制御システム／AI×組込み画像解析／電力・金融向けシステム',alliance:'原子力・電力系制御の高信頼性実績。AI画像解析組込みも展開',web:'（要確認）',priority:'B',status:'未接触',ai:'○'},
+      {no:8,name:'株式会社フジシステムズ',pref:'神奈川県',scale:'中規模',tech:'組込み（カーナビ・携帯）→ Web・IoTデバイス',alliance:'組込み出身でIoT・Webへ転換。フジサンケイグループ系',web:'（要確認）',priority:'B',status:'未接触',ai:'-'},
+      {no:9,name:'株式会社D-design',pref:'東京都',scale:'小規模',tech:'組込みソフト開発／要件定義〜テストまで一貫対応',alliance:'東京・神奈川・埼玉に対応。中小企業向けフルサービス',web:'https://www.d-dsn.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:10,name:'株式会社ブリリアントサービス',pref:'東京都',scale:'小規模',tech:'組込みソフト／ミドルウェア／デバイスドライバ／ウェアラブル／車載',alliance:'車載・ウェアラブル領域に幅広く対応。AR/VRも展開',web:'https://www.brilliantservice.co.jp/',priority:'B',status:'未接触',ai:'○'},
+      {no:11,name:'SHIMOHA Inc.',pref:'東京都',scale:'小規模',tech:'IoT組込み開発／FreeRTOS・Zephyr・TOPPERS・Azure RTOS対応',alliance:'RTOS複数対応。大手SIerが断る小〜中規模IoTに特化',web:'https://www.shimoha.co.jp/',priority:'A',status:'未接触',ai:'○'},
+      {no:12,name:'ソーバル株式会社',pref:'東京都',scale:'中規模（上場）',tech:'組込みシステム＋HW（LSI）／プリンタ・カメラ／車載・5G',alliance:'キヤノン・ソニー・富士通グループ向け実績。規模がやや大きい',web:'https://www.sobal.co.jp/',priority:'C',status:'未接触',ai:'-'},
+      {no:13,name:'株式会社feat',pref:'神奈川県',scale:'中規模（約130名）',tech:'組込みソフト開発（車載・医療・通信・産業機器）／テスト・評価',alliance:'プライム案件90%以上。受託・常駐・派遣の複合対応',web:'https://www.feat-co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:14,name:'アドバンスデザインテクノロジー株式会社',pref:'東京都',scale:'中小規模',tech:'組込み開発ツール・テスト支援／組込みソフト受託',alliance:'JASA会員。設計支援ツールと受託開発の両輪',web:'http://www.adte.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:15,name:'アドバンストシステムズ株式会社',pref:'東京都',scale:'中小規模',tech:'組込みシステム開発／制御系ソフト',alliance:'JASA会員。制御系組込みを得意とする',web:'http://www.asco.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:16,name:'株式会社アドバンスド・データ・コントロールズ',pref:'東京都',scale:'小規模',tech:'組込み系ソフトウェア開発／データ制御システム',alliance:'JASA会員。データ制御特化の組込み開発',web:'http://www.adac.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:17,name:'アンドールシステムサポート株式会社',pref:'東京都',scale:'小規模',tech:'組込みシステム開発サポート／技術支援',alliance:'JASA会員。組込み開発支援・サポート特化',web:'https://www.andor.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:18,name:'株式会社アックス',pref:'東京都',scale:'小規模',tech:'組込みLinux／OSS活用組込み開発／ITron系',alliance:'JASA会員。組込みLinux・OSSに強みを持つ',web:'http://www.axe.bz/',priority:'A',status:'未接触',ai:'△'},
+      {no:19,name:'株式会社エクスモーション',pref:'東京都',scale:'小〜中規模',tech:'組込みソフト開発プロセス改善／アジャイル組込み開発',alliance:'JASA会員。開発プロセス・品質改善コンサルも展開',web:'https://www.exmotion.co.jp/',priority:'B',status:'未接触',ai:'○'},
+      {no:20,name:'株式会社エンファシス',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／制御・通信系ソフトウェア',alliance:'JASA会員。制御・通信領域の組込み受託',web:'http://www.emfasys.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:21,name:'株式会社コマス',pref:'東京都',scale:'小規模',tech:'組込みソフトウェア開発／FA・制御系',alliance:'JASA会員。FA・製造向け制御系組込みに実績',web:'https://www.comas.jp/',priority:'A',status:'未接触',ai:'-'},
+      {no:22,name:'株式会社コンセプトアンドデザイン',pref:'東京都',scale:'小規模',tech:'組込みシステム設計・開発／UI設計も対応',alliance:'JASA会員。設計から実装まで一貫対応',web:'https://www.candd.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:23,name:'JRCエンジニアリング株式会社',pref:'東京都',scale:'中小規模',tech:'組込みシステム開発／無線・通信機器向けソフト',alliance:'JASA会員。通信・無線分野の組込みに実績',web:'https://www.jrce.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:24,name:'ジェネシス株式会社',pref:'東京都',scale:'小規模',tech:'組込みソフトウェア開発／リアルタイム制御',alliance:'JASA会員。リアルタイム制御系組込みを得意とする',web:'http://www.genesys.gr.jp/',priority:'A',status:'未接触',ai:'-'},
+      {no:25,name:'株式会社システムクラフト',pref:'東京都',scale:'小〜中規模',tech:'組込みシステム開発／各種制御ソフト',alliance:'JASA会員。幅広い組込み受託実績',web:'https://www.scinet.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:26,name:'株式会社システムサイエンス研究所',pref:'東京都',scale:'小規模',tech:'組込みシステム研究・開発／先端技術応用',alliance:'JASA会員。研究開発よりの組込み開発',web:'http://www.sylc.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:27,name:'株式会社ストラテジー',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／戦略的ソフト開発支援',alliance:'JASA会員。小規模ながら幅広い組込み対応',web:'http://www.k-s-g.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:28,name:'株式会社ゼロソフト',pref:'東京都',scale:'小規模',tech:'組込みソフトウェア開発／IoT・機器制御',alliance:'JASA会員。IoT・機器制御の組込み受託',web:'https://www.zerosoft.co.jp/',priority:'A',status:'未接触',ai:'△'},
+      {no:29,name:'株式会社Sohwa & Sophia Technologies',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／車載・産業機器向け',alliance:'JASA会員。車載・産業向け組込みに注力',web:'http://www.ss-technologies.co.jp/',priority:'A',status:'未接触',ai:'△'},
+      {no:30,name:'大旺工業株式会社',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／産業機器・計測器向け',alliance:'JASA会員。産業機器・計測器向け組込み受託',web:'http://taiyo-kg.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:31,name:'株式会社D・Ace',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／ハードウェア・ソフトウェア一貫',alliance:'JASA会員。HW・SW一貫開発に対応',web:'https://d-ace.co.jp/',priority:'A',status:'未接触',ai:'-'},
+      {no:32,name:'TDIプロダクトソリューション株式会社',pref:'東京都',scale:'中小規模',tech:'組込みシステム開発／産業・車載向けソフト',alliance:'JASA会員。産業・車載領域に実績',web:'https://www.tdips.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:33,name:'デンセイシリウス株式会社',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／電源・電力系制御ソフト',alliance:'JASA会員。電源・電力系制御組込みに特化',web:'https://www.denseisirius.com/',priority:'B',status:'未接触',ai:'-'},
+      {no:34,name:'株式会社トーセーシステムズ',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／産業機器・FA向けソフト',alliance:'JASA会員。FA・産業向け組込みに実績',web:'https://www.toseisystems.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:35,name:'東信システムハウス株式会社',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／通信・ネットワーク機器向け',alliance:'JASA会員。通信・ネット機器向け組込みに強み',web:'http://www.toshin-sh.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:36,name:'株式会社永栄',pref:'東京都',scale:'小規模',tech:'組込みソフトウェア開発／制御系・産業機器',alliance:'JASA会員。制御・産業機器の組込み受託',web:'http://www.nagae-jp.com/',priority:'B',status:'未接触',ai:'-'},
+      {no:37,name:'株式会社ニッキ',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／自動車・産業機器向け',alliance:'JASA会員。自動車・産業向け組込み実績',web:'http://www.nikkinet.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:38,name:'日本システム開発株式会社',pref:'東京都',scale:'中小規模',tech:'組込みシステム開発／制御・通信・FA向け',alliance:'JASA会員。幅広い業種の組込み受託実績',web:'https://www.nskint.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:39,name:'ノアソリューション株式会社',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／IoT・センサー系ソフト',alliance:'JASA会員。IoT・センサー系組込みに注力',web:'http://www.noahsi.com/',priority:'A',status:'未接触',ai:'△'},
+      {no:40,name:'株式会社ノードゥス',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／機器制御・ファームウェア',alliance:'JASA会員。機器制御・ファームウェア受託',web:'https://www.nodus-inc.com/',priority:'A',status:'未接触',ai:'△'},
+      {no:41,name:'株式会社ハイスポット',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／映像・AV機器向けソフト',alliance:'JASA会員。映像・AV機器向け組込みに強み',web:'https://www.hispot.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:42,name:'株式会社パトリオット',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／産業・計測機器向けソフト',alliance:'JASA会員。産業・計測機器向け組込み受託',web:'http://www.patriot.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:43,name:'ハル・エンジニアリング株式会社',pref:'東京都',scale:'小規模',tech:'組込みシステム開発・エンジニアリングサービス',alliance:'JASA会員。組込み開発全般に対応',web:'http://www.haleng.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:44,name:'株式会社ビー・メソッド',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／方法論ベース開発支援',alliance:'JASA会員。方法論・品質重視の組込み開発',web:'http://www.be-method.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:45,name:'株式会社ビッツ',pref:'東京都',scale:'中小規模',tech:'組込みシステム開発／通信・ネットワーク・車載',alliance:'JASA会員。東北・関西にも拠点あり',web:'https://www.bits.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:46,name:'フラットーク株式会社',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／制御ソフト受託',alliance:'JASA会員。小規模ながら制御系組込みに特化',web:'http://www.flatoak.co.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:47,name:'株式会社メタテクノ',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／医療・産業向けソフト',alliance:'JASA会員。医療・産業機器向け組込みに強み',web:'https://www.meta.co.jp/',priority:'A',status:'未接触',ai:'○'},
+      {no:48,name:'株式会社ラデックス',pref:'東京都',scale:'小規模',tech:'組込みシステム開発／リアルタイム制御・計測',alliance:'JASA会員。リアルタイム制御・計測機器系に実績',web:'https://www.rdx.co.jp/',priority:'A',status:'未接触',ai:'△'},
+      {no:49,name:'リネオソリューション株式会社',pref:'東京都',scale:'小規模',tech:'組込みLinux／Linuxカーネル・BSP開発',alliance:'JASA会員。組込みLinux専門。LinuxカーネルカスタマイズやBSP開発に特化',web:'https://www.lineo.co.jp/',priority:'A',status:'未接触',ai:'○'},
+      {no:50,name:'株式会社グレープシステム',pref:'東京都',scale:'中小規模',tech:'組込みシステム開発／ルータ・ゲートウェイ・IoT',alliance:'JASA会員。ルータ・ゲートウェイ・IoT機器向け組込みに実績',web:'https://www.grape.co.jp/',priority:'A',status:'未接触',ai:'△'},
+      {no:51,name:'株式会社アクティブ・ブレインズ・トラスト',pref:'東京都',scale:'小規模',tech:'組込みシステム開発・コンサルティング',alliance:'JASA会員。組込み開発コンサルも提供',web:'https://active-brains-trust.jp/',priority:'B',status:'未接触',ai:'-'},
+      {no:52,name:'有限会社Orbis Brain',pref:'東京都',scale:'小規模（数名）',tech:'組込みシステム開発／IoT・小型デバイス向け',alliance:'JASA会員。超小規模。IoT・小型デバイス専門',web:'http://orbisbrain.com/',priority:'A',status:'未接触',ai:'△'},
+    ];
+
+
+    // BP list state
+    let bpFilter = 'all';
+    // bpStatuses / bpWebOverrides はページ上部で宣言済み（loadMonthlyDataでSupabaseから読み込み）
+
+    function saveWeb(no, val) {
+      bpWebOverrides[no] = val;
+      saveMonthlyData({ bp_web_overrides: bpWebOverrides });
+      renderBP();
+    }
+
+    function setPFilter(el, p) {
+      bpFilter = p;
+      document.querySelectorAll('.bp-filter').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      renderBP();
+    }
+
+    function saveStatus(no, val) {
+      bpStatuses[no] = val;
+      saveMonthlyData({ bp_statuses: bpStatuses });
+    }
+
+    function renderBP() {
+      if (!monthlyDataReady) return; // Supabaseからのデータ取得が終わるまで描画しない
+      const q = (document.getElementById('bpSearch')?.value || '').toLowerCase();
+      const tbody = document.getElementById('bpBody');
+      if (!tbody) return;
+      const pColors = {A:'rgba(16,185,129,0.12)',B:'rgba(245,158,11,0.1)',C:'rgba(239,68,68,0.1)'};
+      const pText = {A:'#34d399',B:'#fbbf24',C:'#f87171'};
+      const sBg = {
+        '未接触':'rgba(100,116,139,0.15)',
+        '検討中':'rgba(245,158,11,0.15)',
+        'アプローチ済':'rgba(99,102,241,0.15)',
+        '商談中':'rgba(16,185,129,0.15)',
+        'アライアンス締結':'rgba(16,185,129,0.3)',
+        '見送り':'rgba(239,68,68,0.12)'
+      };
+      const sText = {
+        '未接触':'#94a3b8','検討中':'#fbbf24','アプローチ済':'#818cf8',
+        '商談中':'#34d399','アライアンス締結':'#10b981','見送り':'#f87171'
+      };
+
+      let filtered = BP_LIST.filter(r => {
+        if (bpFilter !== 'all' && r.priority !== bpFilter) return false;
+        if (q && !r.name.toLowerCase().includes(q) && !r.tech.toLowerCase().includes(q) && !r.alliance.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      document.getElementById('bp-count').textContent = filtered.length + ' 社表示';
+
+      tbody.innerHTML = filtered.map(r => {
+        const st = bpStatuses[r.no] || r.status;
+        const webVal = bpWebOverrides[r.no] !== undefined ? bpWebOverrides[r.no] : r.web;
+        const webCell = editMode
+          ? `<input type="text" value="${webVal.startsWith('http')?webVal:''}" placeholder="URLを貼り付け" onchange="saveWeb(${r.no}, this.value)" style="width:140px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 6px;color:var(--text);font-size:10px;outline:none;">`
+          : webVal.startsWith('http')
+            ? `<a href="${webVal}" target="_blank" style="color:#818cf8;text-decoration:none;font-size:10px;" title="${webVal}">🔗 開く</a>`
+            : `<span style="color:var(--text-muted);font-size:10px;">要確認</span>`;
+        const aiCell = r.ai === '○' ? '<span style="color:#34d399;">○</span>' : r.ai === '△' ? '<span style="color:#fbbf24;">△</span>' : '<span style="color:#475569;">-</span>';
+        const stOpts = STATUSES.map(s => `<option value="${s}" ${s===st?'selected':''}>${s}</option>`).join('');
+        return `<tr style="border-bottom:1px solid var(--border);background:var(--surface);" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='var(--surface)'">
+          <td style="padding:7px 10px;white-space:nowrap;">
+            <span style="background:${pColors[r.priority]};color:${pText[r.priority]};border-radius:6px;padding:2px 8px;font-weight:700;font-size:11px;">${r.priority}</span>
+          </td>
+          <td style="padding:7px 10px;font-weight:600;min-width:140px;">${r.name}</td>
+          <td style="padding:7px 10px;white-space:nowrap;color:var(--text-muted);">${r.pref}</td>
+          <td style="padding:7px 10px;color:var(--text-muted);font-size:11px;min-width:180px;">${r.tech}</td>
+          <td style="padding:7px 10px;color:var(--text-muted);font-size:11px;min-width:180px;">${r.alliance}</td>
+          <td style="padding:7px 10px;text-align:center;">${aiCell}</td>
+          <td style="padding:7px 10px;">
+            <select onchange="saveStatus(${r.no}, this.value)" style="background:${sBg[st]||'rgba(100,116,139,0.15)'};color:${sText[st]||'#94a3b8'};border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:3px 6px;font-size:11px;cursor:pointer;outline:none;" id="st-${r.no}">${stOpts}</select>
+          </td>
+          <td style="padding:7px 10px;">${webCell}</td>
+        </tr>`;
+      }).join('');
+
+      // Update select colors on change
+      filtered.forEach(r => {
+        const sel = document.getElementById('st-' + r.no);
+        if (sel) sel.onchange = function() {
+          saveStatus(r.no, this.value);
+          this.style.background = sBg[this.value] || 'rgba(100,116,139,0.15)';
+          this.style.color = sText[this.value] || '#94a3b8';
+        };
+      });
+    }
+
+
+
+    // ── インライン onclick/onchange/oninput から呼べるよう、window にも公開する ──
+    window.toggleEdit = toggleEdit;
+    window.handleHeaderClick = handleHeaderClick;
+    window.delLi = delLi;
+    window.addLi = addLi;
+    window.saveHTML = saveHTML;
+    window.setPFilter = setPFilter;
+    window.renderBP = renderBP;
+    window.saveWeb = saveWeb;
+    window.saveStatus = saveStatus;
+
+    loadMonthlyData();
+
+    return () => {
+      document.removeEventListener('input', handleGlobalInput);
+      document.removeEventListener('blur', handleGlobalBlur, true);
+      clearTimeout(planSaveTimer);
+      if (kgiTargetElForBlur) kgiTargetElForBlur.removeEventListener('blur', updateKgiStatsDisplay);
+      delete window.toggleEdit;
+      delete window.handleHeaderClick;
+      delete window.delLi;
+      delete window.addLi;
+      delete window.saveHTML;
+      delete window.setPFilter;
+      delete window.renderBP;
+      delete window.saveWeb;
+      delete window.saveStatus;
+    };
+
+  }, []);
+
+  return (
+    <>
+      <style>{MONTHLY_ACTIONS_CSS}</style>
+      <div dangerouslySetInnerHTML={{ __html: MONTHLY_ACTIONS_BODY_HTML }} />
+    </>
   );
 };
 
