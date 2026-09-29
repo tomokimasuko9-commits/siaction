@@ -2976,7 +2976,21 @@ const MonthlyActionsView = () => {
           presentStaticKeys.add(key);
         }
       });
-      const removedKeys = ALL_STATIC_KEYS.filter(k => !presentStaticKeys.has(k));
+
+      // 安全装置：本来139個あるはずの項目が大きく欠けている場合、
+      // それはユーザーの削除ではなく描画側の不具合の可能性が高いため、
+      // 削除扱いにせず何も消さない（誤って大量削除が保存されるのを防ぐ）。
+      const missingCount = ALL_STATIC_KEYS.length - presentStaticKeys.size;
+      const missingRatio = missingCount / ALL_STATIC_KEYS.length;
+      let removedKeys;
+      if (missingRatio > 0.15) {
+        console.warn(
+          `monthly_action_data: ${missingCount}件の項目が見つからず異常な割合のため、削除扱いにするのを中止しました。`
+        );
+        removedKeys = [];
+      } else {
+        removedKeys = ALL_STATIC_KEYS.filter(k => !presentStaticKeys.has(k));
+      }
 
       return { fieldText, addedItems, removedKeys };
     }
