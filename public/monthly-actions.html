@@ -805,22 +805,60 @@
 <script>
 let editMode = false;
 
+// ── Supabase接続（他のページと同じデータベースを共有） ──────────────
+const sbClient = window.supabase.createClient(
+  "https://vxhkmjmrjzdsozfaggsu.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4aGttam1yanpkc296ZmFnZ3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzOTY2MjgsImV4cCI6MjA5Mzk3MjYyOH0.e7ncLRc67n6i3AwA5btRrZ1TsYSqTH4Wh4F9es5Clww"
+);
+const MONTHLY_ROW_ID = "main"; // monthly_action_data テーブルの単一行ID
+
+let bpStatuses = {};
+let bpWebOverrides = {};
+let monthlyDataReady = false;
+
+async function saveMonthlyData(partial) {
+  try {
+    await sbClient.from("monthly_action_data").upsert({
+      id: MONTHLY_ROW_ID,
+      ...partial,
+      updated_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    // ネットワークエラー時は保存できないが、画面上の編集内容は残る
+    console.error("monthly_action_data save failed", e);
+  }
+}
+
 function savePlanContent() {
   const el = document.getElementById('plan-content');
   if (!el) return;
-  try { localStorage.setItem('planContentHTML', el.innerHTML); } catch(e) {}
+  saveMonthlyData({ plan_content_html: el.innerHTML });
 }
 
-function restorePlanContent() {
+async function loadMonthlyData() {
   try {
-    const saved = localStorage.getItem('planContentHTML');
-    if (!saved) return;
-    const el = document.getElementById('plan-content');
-    if (el) el.innerHTML = saved;
-  } catch(e) {}
+    const { data, error } = await sbClient
+      .from("monthly_action_data")
+      .select("*")
+      .eq("id", MONTHLY_ROW_ID)
+      .maybeSingle();
+    if (!error && data) {
+      if (data.plan_content_html) {
+        const el = document.getElementById('plan-content');
+        if (el) el.innerHTML = data.plan_content_html;
+      }
+      bpStatuses = data.bp_statuses || {};
+      bpWebOverrides = data.bp_web_overrides || {};
+    }
+  } catch (e) {
+    console.error("monthly_action_data load failed", e);
+  }
+  monthlyDataReady = true;
+  renderBP();       // データ取得後にBPリストを描画
+  loadLiveKgiStats(); // KGI稼働数もあわせて反映
 }
 
-document.addEventListener('DOMContentLoaded', restorePlanContent);
+document.addEventListener('DOMContentLoaded', loadMonthlyData);
 
 // 「編集完了」ボタンを押し忘れても消えないよう、入力のたびに自動保存する
 let planSaveTimer = null;
@@ -860,11 +898,7 @@ function updateKgiStatsDisplay() {
 
 async function loadLiveKgiStats() {
   try {
-    const client = window.supabase.createClient(
-      "https://vxhkmjmrjzdsozfaggsu.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4aGttam1yanpkc296ZmFnZ3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzOTY2MjgsImV4cCI6MjA5Mzk3MjYyOH0.e7ncLRc67n6i3AwA5btRrZ1TsYSqTH4Wh4F9es5Clww"
-    );
-    const { count, error } = await client
+    const { count, error } = await sbClient
       .from('engineers')
       .select('*', { count: 'exact', head: true })
       .eq('status', '稼働中');
@@ -877,7 +911,6 @@ async function loadLiveKgiStats() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  loadLiveKgiStats();
   const targetEl = document.getElementById('kgiTargetVal');
   if (targetEl) targetEl.addEventListener('blur', updateKgiStatsDisplay);
 });
@@ -1014,12 +1047,11 @@ const BP_LIST = [
 
 // BP list state
 let bpFilter = 'all';
-const bpStatuses = JSON.parse(localStorage.getItem('bpStatuses') || '{}');
-const bpWebOverrides = JSON.parse(localStorage.getItem('bpWebOverrides') || '{}');
+// bpStatuses / bpWebOverrides はページ上部で宣言済み（loadMonthlyDataでSupabaseから読み込み）
 
 function saveWeb(no, val) {
   bpWebOverrides[no] = val;
-  try { localStorage.setItem('bpWebOverrides', JSON.stringify(bpWebOverrides)); } catch(e) {}
+  saveMonthlyData({ bp_web_overrides: bpWebOverrides });
   renderBP();
 }
 
@@ -1032,10 +1064,11 @@ function setPFilter(el, p) {
 
 function saveStatus(no, val) {
   bpStatuses[no] = val;
-  try { localStorage.setItem('bpStatuses', JSON.stringify(bpStatuses)); } catch(e) {}
+  saveMonthlyData({ bp_statuses: bpStatuses });
 }
 
 function renderBP() {
+  if (!monthlyDataReady) return; // Supabaseからのデータ取得が終わるまで描画しない
   const q = (document.getElementById('bpSearch')?.value || '').toLowerCase();
   const tbody = document.getElementById('bpBody');
   if (!tbody) return;
@@ -1099,7 +1132,7 @@ function renderBP() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', renderBP);
+
 
 </script>
 <!-- BP Attack List Section -->
