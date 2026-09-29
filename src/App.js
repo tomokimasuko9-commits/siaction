@@ -2406,6 +2406,7 @@ const MONTHLY_ACTIONS_BODY_HTML = `
 <div class="toolbar">
   <span class="toolbar-title">🎯 下期 月別アクション通知</span>
   <span class="edit-hint">✏️ テキストをクリックして編集できます</span>
+  <span id="saveIndicator" style="font-size:11px; color:var(--text-muted); min-width:110px;"></span>
   <button class="btn btn-edit" id="editBtn" onclick="toggleEdit()">✏️ 編集モード</button>
 </div>
 
@@ -2918,17 +2919,41 @@ const MonthlyActionsView = () => {
     let bpStatuses = {};
     let bpWebOverrides = {};
     let monthlyDataReady = false;
+    let pendingSaveCount = 0;
+
+    const handleBeforeUnload = (e) => {
+      if (pendingSaveCount > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    function setSaveIndicator(text, color) {
+      const el = document.getElementById('saveIndicator');
+      if (!el) return;
+      el.textContent = text;
+      el.style.color = color;
+    }
 
     async function saveMonthlyData(partial) {
+      setSaveIndicator('● 保存中…', '#fbbf24');
+      pendingSaveCount++;
       try {
-        await supabase.from("monthly_action_data").upsert({
+        const { error } = await supabase.from("monthly_action_data").upsert({
           id: MONTHLY_ROW_ID,
           ...partial,
           updated_at: new Date().toISOString(),
         });
+        if (error) throw error;
+        setSaveIndicator('✅ 保存しました（リロードして大丈夫です）', '#34d399');
+        setTimeout(() => setSaveIndicator('', ''), 4000);
       } catch (e) {
         // ネットワークエラー時は保存できないが、画面上の編集内容は残る
         console.error("monthly_action_data save failed", e);
+        setSaveIndicator('⚠️ 保存に失敗しました。リロードしないでください', '#f87171');
+      } finally {
+        pendingSaveCount--;
       }
     }
 
@@ -3293,6 +3318,7 @@ const MonthlyActionsView = () => {
 
     return () => {
       document.removeEventListener('input', handleGlobalInput);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('blur', handleGlobalBlur, true);
       clearTimeout(planSaveTimer);
       if (kgiTargetElForBlur) kgiTargetElForBlur.removeEventListener('blur', updateKgiStatsDisplay);
