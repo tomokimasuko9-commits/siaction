@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>下期 月別アクション通知</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -361,15 +362,15 @@
 <div class="kgi-overview">
   <div class="kgi-main">
     <div class="kgi-label">KGI 稼働件数</div>
-    <div class="kgi-number"><span contenteditable="false">90</span> <span>名（改訂目標）</span></div>
-    <div style="font-size:11px; color:var(--text-muted); margin-top:4px;" contenteditable="false">現在 24名 → 下期で +66名 追加が必要</div>
-    <div class="kgi-bar" style="margin-top:10px;"><div class="kgi-bar-fill" style="width:27%"></div></div>
-    <div style="font-size:10px; color:var(--text-muted); margin-top:4px;" contenteditable="false">27% 達成（2026年9月末時点）</div>
+    <div class="kgi-number"><span id="kgiTargetVal" contenteditable="false">90</span> <span>名（改訂目標）</span></div>
+    <div id="kgiSubtitle" style="font-size:11px; color:var(--text-muted); margin-top:4px;">現在 24名 → 下期で +66名 追加が必要</div>
+    <div class="kgi-bar" style="margin-top:10px;"><div class="kgi-bar-fill" id="kgiBarFill" style="width:27%"></div></div>
+    <div id="kgiPercentText" style="font-size:10px; color:var(--text-muted); margin-top:4px;">27% 達成（2026年9月末時点）</div>
   </div>
   <div class="kgi-stats">
-    <div class="kgi-stat"><div class="kgi-stat-value green" contenteditable="false">24</div><div class="kgi-stat-label">現在稼働</div></div>
-    <div class="kgi-stat"><div class="kgi-stat-value orange" contenteditable="false">66</div><div class="kgi-stat-label">残り目標</div></div>
-    <div class="kgi-stat"><div class="kgi-stat-value purple" contenteditable="false">11</div><div class="kgi-stat-label">月平均必要</div></div>
+    <div class="kgi-stat"><div class="kgi-stat-value green" id="statCurrent">24</div><div class="kgi-stat-label">現在稼働</div></div>
+    <div class="kgi-stat"><div class="kgi-stat-value orange" id="statRemain">66</div><div class="kgi-stat-label">残り目標</div></div>
+    <div class="kgi-stat"><div class="kgi-stat-value purple" id="statAvg">11</div><div class="kgi-stat-label">月平均必要</div></div>
     <div class="kgi-stat"><div class="kgi-stat-value pink" contenteditable="false">2</div><div class="kgi-stat-label">チーム人数</div></div>
   </div>
 </div>
@@ -795,7 +796,7 @@
 
 <div class="footer">
   SIer二次請企業開拓 ｜ KGI 90名（改訂）達成計画 ｜ 益子チーム 2名体制<br>
-  現在稼働24名 → 2027年3月末 90名 ｜ 月平均+11名ペース
+  <span id="footerStatLine">現在稼働24名 → 2027年3月末 90名 ｜ 月平均+11名ペース</span>
 </div>
 </div>
 
@@ -820,6 +821,66 @@ function restorePlanContent() {
 }
 
 document.addEventListener('DOMContentLoaded', restorePlanContent);
+
+// 「編集完了」ボタンを押し忘れても消えないよう、入力のたびに自動保存する
+let planSaveTimer = null;
+function debouncedSavePlanContent() {
+  clearTimeout(planSaveTimer);
+  planSaveTimer = setTimeout(savePlanContent, 600);
+}
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.isContentEditable) debouncedSavePlanContent();
+});
+document.addEventListener('blur', (e) => {
+  if (e.target && e.target.isContentEditable) savePlanContent();
+}, true); // blurはバブリングしないためcaptureで拾う
+
+// ── 稼働者管理ページ（Supabase engineersテーブル）と連動した現在稼働数の自動反映 ──
+const KGI_MONTHS_REMAINING = 6; // 下期(2026年10月〜2027年3月)の残り月数
+let liveCurrentCount = null;
+
+function updateKgiStatsDisplay() {
+  if (liveCurrentCount === null) return;
+  const ids = ['kgiTargetVal','statCurrent','statRemain','statAvg','kgiSubtitle','kgiBarFill','kgiPercentText','footerStatLine'];
+  const el = {};
+  for (const id of ids) { el[id] = document.getElementById(id); if (!el[id]) return; } // 要素が見つからない場合は何もしない
+  const target = parseInt(el.kgiTargetVal.textContent, 10) || 90;
+  const remain = Math.max(target - liveCurrentCount, 0);
+  const avg = Math.ceil(remain / KGI_MONTHS_REMAINING);
+  const pct = target > 0 ? Math.min(Math.round((liveCurrentCount / target) * 100), 100) : 0;
+
+  el.statCurrent.textContent = liveCurrentCount;
+  el.statRemain.textContent = remain;
+  el.statAvg.textContent = avg;
+  el.kgiSubtitle.textContent = `現在 ${liveCurrentCount}名 → 下期で +${remain}名 追加が必要`;
+  el.kgiBarFill.style.width = pct + '%';
+  el.kgiPercentText.textContent = `${pct}% 達成（稼働者管理ページと連動・自動更新）`;
+  el.footerStatLine.textContent = `現在稼働${liveCurrentCount}名 → 2027年3月末 ${target}名 ｜ 月平均+${avg}名ペース`;
+}
+
+async function loadLiveKgiStats() {
+  try {
+    const client = window.supabase.createClient(
+      "https://vxhkmjmrjzdsozfaggsu.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4aGttam1yanpkc296ZmFnZ3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzOTY2MjgsImV4cCI6MjA5Mzk3MjYyOH0.e7ncLRc67n6i3AwA5btRrZ1TsYSqTH4Wh4F9es5Clww"
+    );
+    const { count, error } = await client
+      .from('engineers')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', '稼働中');
+    if (error || count === null) return; // 取得失敗時は元の静的な数値のまま表示
+    liveCurrentCount = count;
+    updateKgiStatsDisplay();
+  } catch (e) {
+    // ネットワークエラー時は何もしない（元の数値のまま）
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadLiveKgiStats();
+  const targetEl = document.getElementById('kgiTargetVal');
+  if (targetEl) targetEl.addEventListener('blur', updateKgiStatsDisplay);
+});
 
 function toggleEdit() {
   editMode = !editMode;
