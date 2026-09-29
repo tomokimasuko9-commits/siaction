@@ -2149,12 +2149,6 @@ const MONTHLY_ACTIONS_CSS = `
     color: #fff;
     border-color: var(--accent);
   }
-  .btn-save {
-    background: rgba(16,185,129,0.15);
-    color: #34d399;
-    border: 1px solid rgba(16,185,129,0.3);
-  }
-  .btn-save:hover { background: rgba(16,185,129,0.25); }
   .btn-add {
     background: rgba(245,158,11,0.15);
     color: #fbbf24;
@@ -2388,23 +2382,6 @@ const MONTHLY_ACTIONS_CSS = `
   .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; animation: pulse 2s infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  /* Saved toast */
-  .toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: #10b981;
-    color: #fff;
-    padding: 10px 20px;
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 600;
-    transition: transform 0.3s;
-    z-index: 200;
-  }
-  .toast.show { transform: translateX(-50%) translateY(0); }
-
   .bp-filter {
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -2430,7 +2407,6 @@ const MONTHLY_ACTIONS_BODY_HTML = `
   <span class="toolbar-title">🎯 下期 月別アクション通知</span>
   <span class="edit-hint">✏️ テキストをクリックして編集できます</span>
   <button class="btn btn-edit" id="editBtn" onclick="toggleEdit()">✏️ 編集モード</button>
-  <button class="btn btn-save" onclick="saveHTML()">💾 HTMLで保存</button>
 </div>
 
 <div id="plan-content">
@@ -2881,8 +2857,6 @@ const MONTHLY_ACTIONS_BODY_HTML = `
 </div>
 </div>
 
-<div class="toast" id="toast">✅ HTMLを保存しました</div>
-
 
 <!-- BP Attack List Section -->
 <div style="margin-top:40px;">
@@ -3159,27 +3133,6 @@ const MonthlyActionsView = () => {
       }, 50);
     }
 
-    function saveHTML() {
-      // 編集モード一時解除してHTMLを取得
-      const wasEditing = editMode;
-      if (wasEditing) toggleEdit();
-
-      const html = '<!DOCTYPE html>\n<html lang="ja">\n' + document.documentElement.innerHTML + '\n</html>';
-
-      if (wasEditing) toggleEdit();
-
-      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'monthly-actions-plan.html';
-      a.click();
-      URL.revokeObjectURL(a.href);
-
-      const toast = document.getElementById('toast');
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2500);
-    }
-
     const STATUSES = ['未接触','検討中','アプローチ済','商談中','アライアンス締結','見送り'];
     const BP_LIST = [
       {no:1,name:'ナイン・アルファ合同会社',pref:'神奈川県',scale:'小規模（数名）',tech:'組込みソフト／デバイスドライバ／無線（Wi-Fi・BT・RFID/NFC）／HW設計',alliance:'少数精鋭。車載・家電・精密機器の実績多数。フリーランスと親和性が高い',web:'（要確認）',priority:'A',status:'未接触',ai:'-'},
@@ -3331,7 +3284,6 @@ const MonthlyActionsView = () => {
     window.handleHeaderClick = handleHeaderClick;
     window.delLi = delLi;
     window.addLi = addLi;
-    window.saveHTML = saveHTML;
     window.setPFilter = setPFilter;
     window.renderBP = renderBP;
     window.saveWeb = saveWeb;
@@ -3348,7 +3300,6 @@ const MonthlyActionsView = () => {
       delete window.handleHeaderClick;
       delete window.delLi;
       delete window.addLi;
-      delete window.saveHTML;
       delete window.setPFilter;
       delete window.renderBP;
       delete window.saveWeb;
