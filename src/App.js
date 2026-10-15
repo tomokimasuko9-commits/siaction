@@ -8,7 +8,7 @@ const supabase = createClient(
 
 // ── バージョン番号 ────────────────────────────────────────────
 // ページに大きな変更を加えるたびにカウントアップしてください（例: 1.0.1 → 1.0.2）
-const APP_VERSION = "1.0.1";
+const APP_VERSION = "1.0.2";
 
 // ── デフォルトテーマ定義 ──────────────────────────────────────
 const DEFAULT_THEME = {
@@ -2898,7 +2898,10 @@ const MONTHLY_ACTIONS_BODY_HTML = `
 
 `;
 
-const MonthlyActionsView = () => {
+const MonthlyActionsView = ({ engineers = [] }) => {
+  // 稼働者管理と同じデータ（アーカイブ済みを除く engineers）から稼働中の人数を数える
+  const activeCount = engineers.filter(e => e.status === "稼働中").length;
+
   useEffect(() => {
 
     let editMode = false;
@@ -3053,7 +3056,7 @@ const MonthlyActionsView = () => {
       }
       monthlyDataReady = true;
       renderBP();       // データ取得後にBPリストを描画
-      loadLiveKgiStats(); // KGI稼働数もあわせて反映
+      updateKgiStatsDisplay(); // 復元した目標値でKGI関連の表示を再計算
     }
 
     // (loadMonthlyData is invoked directly below, after all functions are defined)
@@ -3096,19 +3099,11 @@ const MonthlyActionsView = () => {
       el.footerStatLine.textContent = `現在稼働${liveCurrentCount}名 → 2027年3月末 ${target}名 ｜ 月平均+${avg}名ペース`;
     }
 
-    async function loadLiveKgiStats() {
-      try {
-        const { count, error } = await supabase
-          .from('engineers')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', '稼働中');
-        if (error || count === null) return; // 取得失敗時は元の静的な数値のまま表示
-        liveCurrentCount = count;
-        updateKgiStatsDisplay();
-      } catch (e) {
-        // ネットワークエラー時は何もしない（元の数値のまま）
-      }
-    }
+    // 稼働者管理と同じ人数を受け取って表示に反映する（親コンポーネントから呼ばれる）
+    window.__kgiSync = (count) => {
+      liveCurrentCount = count;
+      updateKgiStatsDisplay();
+    };
 
     const kgiTargetElForBlur = document.getElementById('kgiTargetVal');
     if (kgiTargetElForBlur) kgiTargetElForBlur.addEventListener('blur', updateKgiStatsDisplay);
@@ -3335,12 +3330,18 @@ const MonthlyActionsView = () => {
       delete window.delLi;
       delete window.addLi;
       delete window.setPFilter;
+      delete window.__kgiSync;
       delete window.renderBP;
       delete window.saveWeb;
       delete window.saveStatus;
     };
 
   }, []);
+
+  // 稼働者管理で人数が増減したら、KGI稼働数の表示も追随させる
+  useEffect(() => {
+    if (window.__kgiSync) window.__kgiSync(activeCount);
+  }, [activeCount]);
 
   return (
     <>
@@ -3797,7 +3798,7 @@ export default function App() {
 
   const views = {
     dashboard: <Dashboard companies={companies} departments={departments} engineers={engineers} logs={logs} kpiTargets={kpiTargets} onRefresh={fetchAll} />,
-    monthly:   <MonthlyActionsView />,
+    monthly:   <MonthlyActionsView engineers={engineers} />,
     kpi:       <KpiView   companies={companies} departments={departments} engineers={engineers} logs={logs} projects={projects} candidates={candidates} kpiTargets={kpiTargets} editMode={kpiEditMode} setEditMode={setKpiEditMode} onRefresh={fetchAll} />,
     summary:   <SummaryView companies={companies} salesProcess={salesProcess} onUpdateProcess={fetchAll} />,
     log:       <LogView   logs={logs} companies={companies} departments={departments} loading={loading} />,
